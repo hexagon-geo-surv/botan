@@ -33,7 +33,15 @@ Server_Impl_13::Server_Impl_13(Callbacks& callbacks,
 
 std::string Server_Impl_13::application_protocol() const
    {
-   // ALPN is NYI for TLS 1.3 server
+   if(m_handshake_state.handshake_finished())
+      {
+      const auto& eee = m_handshake_state.encrypted_extensions().extensions();
+      if(const auto alpn = eee.get<Application_Layer_Protocol_Notification>())
+         {
+         return alpn->single_protocol();
+         }
+      }
+
    return "";
    }
 
@@ -130,10 +138,6 @@ void Server_Impl_13::handle_reply_to_client_hello(const Server_Hello_13& server_
    auto private_key = credentials_manager().private_key_for(server_cert_chain.front(), "tls-server",
                       client_hello.sni_hostname());
    BOTAN_ASSERT_NONNULL(private_key);
-
-   // TODO: ALPN - Invoke Callbacks::tls_server_choose_app_protocol() with
-   //       suggestions sent by the client. This might happen in the Encrypted
-   //       Extensions constructor. Also implement Channel::application_protocol().
 
    aggregate_handshake_messages()
    .add(m_handshake_state.sending(Encrypted_Extensions(client_hello, policy(), callbacks())))
