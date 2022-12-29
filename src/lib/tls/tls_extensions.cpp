@@ -22,10 +22,10 @@ namespace {
 
 std::unique_ptr<Extension> make_extension(TLS_Data_Reader& reader,
                                           const uint16_t code,
-                                          const uint16_t size,
                                           const Connection_Side from,
                                           const Handshake_Type message_type)
    {
+   const uint16_t size = reader.remaining_bytes();
    switch(code)
       {
       case TLSEXT_SERVER_NAME_INDICATION:
@@ -122,14 +122,20 @@ void Extensions::deserialize(TLS_Data_Reader& reader,
          {
          const uint16_t extension_code = reader.get_uint16_t();
          const uint16_t extension_size = reader.get_uint16_t();
-
          const auto type = static_cast<Handshake_Extension_Type>(extension_code);
 
-         if(has(type))
+         if(this->has(type))
+            {
             throw TLS_Exception(TLS::Alert::DECODE_ERROR,
                                 "Peer sent duplicated extensions");
+            }
 
-         this->add(make_extension(reader, extension_code, extension_size, from, message_type));
+         // TODO offer a function on reader that returns a byte range as a reference
+         // to avoid this copy of the extension data
+         const std::vector<uint8_t> extn_data = reader.get_fixed<uint8_t>(extension_size);
+         TLS_Data_Reader extn_reader("Extension", extn_data);
+         this->add(make_extension(extn_reader, extension_code, from, message_type));
+         extn_reader.assert_done();
          }
       }
    }
