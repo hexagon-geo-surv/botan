@@ -49,39 +49,39 @@ class Policy;
 class TLS_Data_Reader;
 
 enum class Extension_Code : uint16_t {
-   TLSEXT_SERVER_NAME_INDICATION    = 0,
-   TLSEXT_CERT_STATUS_REQUEST       = 5,
+   ServerNameIndication                = 0,
+   CertificateStatusRequest            = 5,
 
-   TLSEXT_SUPPORTED_GROUPS          = 10,
-   TLSEXT_EC_POINT_FORMATS          = 11,
-   TLSEXT_SIGNATURE_ALGORITHMS      = 13,
-   TLSEXT_USE_SRTP                  = 14,
-   TLSEXT_ALPN                      = 16,
+   SupportedGroups                     = 10,
+   EcPointFormats                      = 11,
+   SignatureAlgorithms                 = 13,
+   UseSrtp                             = 14,
+   ApplicationLayerProtocolNegotiation = 16,
 
-   // TLSEXT_SIGNED_CERTIFICATE_TIMESTAMP = 18,  // NYI
+   // SignedCertificateTimestamp          = 18,  // NYI
 
-   TLSEXT_ENCRYPT_THEN_MAC          = 22,
-   TLSEXT_EXTENDED_MASTER_SECRET    = 23,
+   EncryptThenMac                      = 22,
+   ExtendedMasterSecret                = 23,
 
-   TLSEXT_RECORD_SIZE_LIMIT         = 28,
+   RecordSizeLimit                     = 28,
 
-   TLSEXT_SESSION_TICKET            = 35,
+   SessionTicket                       = 35,
 
-   TLSEXT_SUPPORTED_VERSIONS        = 43,
+   SupportedVersions                   = 43,
 #if defined(BOTAN_HAS_TLS_13)
-   TLSEXT_PSK                       = 41,
-   TLSEXT_EARLY_DATA                = 42,
-   TLSEXT_COOKIE                    = 44,
+   PresharedKey                        = 41,
+   EarlyData                           = 42,
+   Cookie                              = 44,
 
-   TLSEXT_PSK_KEY_EXCHANGE_MODES    = 45,
-   TLSEXT_CERTIFICATE_AUTHORITIES   = 47,
-   // TLSEXT_OID_FILTERS               = 48,  // NYI
+   PskKeyExchangeModes                 = 45,
+   CertificateAuthorities              = 47,
+   // OidFilters                          = 48,  // NYI
 
-   TLSEXT_SIGNATURE_ALGORITHMS_CERT = 50,
-   TLSEXT_KEY_SHARE                 = 51,
+   CertSignatureAlgorithms             = 50,
+   KeyShare                            = 51,
 #endif
 
-   TLSEXT_SAFE_RENEGOTIATION     = 65281,
+   SafeRenegotiation                   = 65281,
 };
 
 /**
@@ -120,7 +120,7 @@ class BOTAN_UNSTABLE_API Server_Name_Indicator final : public Extension
    {
    public:
       static Extension_Code static_type()
-         { return Extension_Code::TLSEXT_SERVER_NAME_INDICATION; }
+         { return Extension_Code::ServerNameIndication; }
 
       Extension_Code type() const override { return static_type(); }
 
@@ -147,7 +147,7 @@ class BOTAN_UNSTABLE_API Renegotiation_Extension final : public Extension
    {
    public:
       static Extension_Code static_type()
-         { return Extension_Code::TLSEXT_SAFE_RENEGOTIATION; }
+         { return Extension_Code::SafeRenegotiation; }
 
       Extension_Code type() const override { return static_type(); }
 
@@ -175,7 +175,8 @@ class BOTAN_UNSTABLE_API Renegotiation_Extension final : public Extension
 class BOTAN_UNSTABLE_API Application_Layer_Protocol_Notification final : public Extension
    {
    public:
-      static Extension_Code static_type() { return Extension_Code::TLSEXT_ALPN; }
+      static Extension_Code static_type()
+         { return Extension_Code::ApplicationLayerProtocolNegotiation; }
 
       Extension_Code type() const override { return static_type(); }
 
@@ -213,7 +214,7 @@ class BOTAN_UNSTABLE_API Session_Ticket final : public Extension
    {
    public:
       static Extension_Code static_type()
-         { return Extension_Code::TLSEXT_SESSION_TICKET; }
+         { return Extension_Code::SessionTicket; }
 
       Extension_Code type() const override { return static_type(); }
 
@@ -253,7 +254,7 @@ class BOTAN_UNSTABLE_API Supported_Groups final : public Extension
    {
    public:
       static Extension_Code static_type()
-         { return Extension_Code::TLSEXT_SUPPORTED_GROUPS; }
+         { return Extension_Code::SupportedGroups; }
 
       Extension_Code type() const override { return static_type(); }
 
@@ -289,7 +290,7 @@ class BOTAN_UNSTABLE_API Supported_Point_Formats final : public Extension
       };
 
       static Extension_Code static_type()
-         { return Extension_Code::TLSEXT_EC_POINT_FORMATS; }
+         { return Extension_Code::EcPointFormats; }
 
       Extension_Code type() const override { return static_type(); }
 
@@ -316,7 +317,7 @@ class BOTAN_UNSTABLE_API Signature_Algorithms final : public Extension
    {
    public:
       static Extension_Code static_type()
-         { return Extension_Code::TLSEXT_SIGNATURE_ALGORITHMS; }
+         { return Extension_Code::SignatureAlgorithms; }
 
       Extension_Code type() const override { return static_type(); }
 
@@ -351,7 +352,7 @@ class BOTAN_UNSTABLE_API Signature_Algorithms_Cert final : public Extension
    {
    public:
       static Extension_Code static_type()
-         { return Extension_Code::TLSEXT_SIGNATURE_ALGORITHMS_CERT; }
+         { return Extension_Code::CertSignatureAlgorithms; }
 
       Extension_Code type() const override { return static_type(); }
 
@@ -379,7 +380,7 @@ class BOTAN_UNSTABLE_API SRTP_Protection_Profiles final : public Extension
    {
    public:
       static Extension_Code static_type()
-         { return Extension_Code::TLSEXT_USE_SRTP; }
+         { return Extension_Code::UseSrtp; }
 
       Extension_Code type() const override { return static_type(); }
 
@@ -405,7 +406,7 @@ class BOTAN_UNSTABLE_API Extended_Master_Secret final : public Extension
    {
    public:
       static Extension_Code static_type()
-         { return Extension_Code::TLSEXT_EXTENDED_MASTER_SECRET; }
+         { return Extension_Code::ExtendedMasterSecret; }
 
       Extension_Code type() const override { return static_type(); }
 
@@ -425,7 +426,7 @@ class BOTAN_UNSTABLE_API Encrypt_then_MAC final : public Extension
    {
    public:
       static Extension_Code static_type()
-         { return Extension_Code::TLSEXT_ENCRYPT_THEN_MAC; }
+         { return Extension_Code::EncryptThenMac; }
 
       Extension_Code type() const override { return static_type(); }
 
@@ -445,7 +446,7 @@ class BOTAN_UNSTABLE_API Certificate_Status_Request final : public Extension
    {
    public:
       static Extension_Code static_type()
-         { return Extension_Code::TLSEXT_CERT_STATUS_REQUEST; }
+         { return Extension_Code::CertificateStatusRequest; }
 
       Extension_Code type() const override { return static_type(); }
 
@@ -493,7 +494,7 @@ class BOTAN_UNSTABLE_API Supported_Versions final : public Extension
    {
    public:
       static Extension_Code static_type()
-         { return Extension_Code::TLSEXT_SUPPORTED_VERSIONS; }
+         { return Extension_Code::SupportedVersions; }
 
       Extension_Code type() const override { return static_type(); }
 
@@ -530,7 +531,7 @@ class BOTAN_UNSTABLE_API Record_Size_Limit final : public Extension
    {
    public:
       static Extension_Code static_type()
-         { return Extension_Code::TLSEXT_RECORD_SIZE_LIMIT; }
+         { return Extension_Code::RecordSizeLimit; }
 
       Extension_Code type() const override { return static_type(); }
 
@@ -558,7 +559,7 @@ class BOTAN_UNSTABLE_API Cookie final : public Extension
    {
    public:
       static Extension_Code static_type()
-         { return Extension_Code::TLSEXT_COOKIE; }
+         { return Extension_Code::Cookie; }
 
       Extension_Code type() const override { return static_type(); }
 
@@ -584,7 +585,7 @@ class BOTAN_UNSTABLE_API PSK_Key_Exchange_Modes final : public Extension
    {
    public:
       static Extension_Code static_type()
-         { return Extension_Code::TLSEXT_PSK_KEY_EXCHANGE_MODES; }
+         { return Extension_Code::PskKeyExchangeModes; }
 
       Extension_Code type() const override { return static_type(); }
 
@@ -611,7 +612,7 @@ class BOTAN_UNSTABLE_API Certificate_Authorities final : public Extension
    {
    public:
       static Extension_Code static_type()
-         { return Extension_Code::TLSEXT_CERTIFICATE_AUTHORITIES; }
+         { return Extension_Code::CertificateAuthorities; }
 
       Extension_Code type() const override { return static_type(); }
 
@@ -634,7 +635,7 @@ class BOTAN_UNSTABLE_API Certificate_Authorities final : public Extension
 class BOTAN_UNSTABLE_API PSK final : public Extension
    {
    public:
-      static Extension_Code static_type() { return Extension_Code::TLSEXT_PSK; }
+      static Extension_Code static_type() { return Extension_Code::PresharedKey; }
       Extension_Code type() const override { return static_type(); }
 
       std::vector<uint8_t> serialize(Connection_Side side) const override;
@@ -679,7 +680,7 @@ class BOTAN_UNSTABLE_API Key_Share final : public Extension
    {
    public:
       static Extension_Code static_type()
-         { return Extension_Code::TLSEXT_KEY_SHARE; }
+         { return Extension_Code::KeyShare; }
 
       Extension_Code type() const override { return static_type(); }
 
@@ -727,7 +728,7 @@ class BOTAN_UNSTABLE_API EarlyDataIndication final : public Extension
    {
    public:
       static Extension_Code static_type()
-         { return Extension_Code::TLSEXT_EARLY_DATA; }
+         { return Extension_Code::EarlyData; }
 
       Extension_Code type() const override { return static_type(); }
       std::vector<uint8_t> serialize(Connection_Side whoami) const override;
