@@ -48,8 +48,7 @@ enum class PSK_Key_Exchange_Mode : uint8_t {
 class Policy;
 class TLS_Data_Reader;
 
-// This will become an enum class in a future major release
-enum Handshake_Extension_Type {
+enum class Handshake_Extension_Type : uint16_t {
    TLSEXT_SERVER_NAME_INDICATION    = 0,
    TLSEXT_CERT_STATUS_REQUEST       = 5,
 
@@ -122,7 +121,7 @@ class BOTAN_UNSTABLE_API Server_Name_Indicator final : public Extension
    {
    public:
       static Handshake_Extension_Type static_type()
-         { return TLSEXT_SERVER_NAME_INDICATION; }
+         { return Handshake_Extension_Type::TLSEXT_SERVER_NAME_INDICATION; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
 
@@ -149,7 +148,7 @@ class BOTAN_UNSTABLE_API Renegotiation_Extension final : public Extension
    {
    public:
       static Handshake_Extension_Type static_type()
-         { return TLSEXT_SAFE_RENEGOTIATION; }
+         { return Handshake_Extension_Type::TLSEXT_SAFE_RENEGOTIATION; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
 
@@ -177,7 +176,7 @@ class BOTAN_UNSTABLE_API Renegotiation_Extension final : public Extension
 class BOTAN_UNSTABLE_API Application_Layer_Protocol_Notification final : public Extension
    {
    public:
-      static Handshake_Extension_Type static_type() { return TLSEXT_ALPN; }
+      static Handshake_Extension_Type static_type() { return Handshake_Extension_Type::TLSEXT_ALPN; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
 
@@ -215,7 +214,7 @@ class BOTAN_UNSTABLE_API Session_Ticket final : public Extension
    {
    public:
       static Handshake_Extension_Type static_type()
-         { return TLSEXT_SESSION_TICKET; }
+         { return Handshake_Extension_Type::TLSEXT_SESSION_TICKET; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
 
@@ -255,7 +254,7 @@ class BOTAN_UNSTABLE_API Supported_Groups final : public Extension
    {
    public:
       static Handshake_Extension_Type static_type()
-         { return TLSEXT_SUPPORTED_GROUPS; }
+         { return Handshake_Extension_Type::TLSEXT_SUPPORTED_GROUPS; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
 
@@ -291,7 +290,7 @@ class BOTAN_UNSTABLE_API Supported_Point_Formats final : public Extension
       };
 
       static Handshake_Extension_Type static_type()
-         { return TLSEXT_EC_POINT_FORMATS; }
+         { return Handshake_Extension_Type::TLSEXT_EC_POINT_FORMATS; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
 
@@ -318,7 +317,7 @@ class BOTAN_UNSTABLE_API Signature_Algorithms final : public Extension
    {
    public:
       static Handshake_Extension_Type static_type()
-         { return TLSEXT_SIGNATURE_ALGORITHMS; }
+         { return Handshake_Extension_Type::TLSEXT_SIGNATURE_ALGORITHMS; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
 
@@ -353,7 +352,7 @@ class BOTAN_UNSTABLE_API Signature_Algorithms_Cert final : public Extension
    {
    public:
       static Handshake_Extension_Type static_type()
-         { return TLSEXT_SIGNATURE_ALGORITHMS_CERT; }
+         { return Handshake_Extension_Type::TLSEXT_SIGNATURE_ALGORITHMS_CERT; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
 
@@ -381,7 +380,7 @@ class BOTAN_UNSTABLE_API SRTP_Protection_Profiles final : public Extension
    {
    public:
       static Handshake_Extension_Type static_type()
-         { return TLSEXT_USE_SRTP; }
+         { return Handshake_Extension_Type::TLSEXT_USE_SRTP; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
 
@@ -407,7 +406,7 @@ class BOTAN_UNSTABLE_API Extended_Master_Secret final : public Extension
    {
    public:
       static Handshake_Extension_Type static_type()
-         { return TLSEXT_EXTENDED_MASTER_SECRET; }
+         { return Handshake_Extension_Type::TLSEXT_EXTENDED_MASTER_SECRET; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
 
@@ -427,7 +426,7 @@ class BOTAN_UNSTABLE_API Encrypt_then_MAC final : public Extension
    {
    public:
       static Handshake_Extension_Type static_type()
-         { return TLSEXT_ENCRYPT_THEN_MAC; }
+         { return Handshake_Extension_Type::TLSEXT_ENCRYPT_THEN_MAC; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
 
@@ -447,7 +446,7 @@ class BOTAN_UNSTABLE_API Certificate_Status_Request final : public Extension
    {
    public:
       static Handshake_Extension_Type static_type()
-         { return TLSEXT_CERT_STATUS_REQUEST; }
+         { return Handshake_Extension_Type::TLSEXT_CERT_STATUS_REQUEST; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
 
@@ -495,7 +494,7 @@ class BOTAN_UNSTABLE_API Supported_Versions final : public Extension
    {
    public:
       static Handshake_Extension_Type static_type()
-         { return TLSEXT_SUPPORTED_VERSIONS; }
+         { return Handshake_Extension_Type::TLSEXT_SUPPORTED_VERSIONS; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
 
@@ -532,7 +531,7 @@ class BOTAN_UNSTABLE_API Record_Size_Limit final : public Extension
    {
    public:
       static Handshake_Extension_Type static_type()
-         { return TLSEXT_RECORD_SIZE_LIMIT; }
+         { return Handshake_Extension_Type::TLSEXT_RECORD_SIZE_LIMIT; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
 
@@ -560,7 +559,7 @@ class BOTAN_UNSTABLE_API Cookie final : public Extension
    {
    public:
       static Handshake_Extension_Type static_type()
-         { return TLSEXT_COOKIE; }
+         { return Handshake_Extension_Type::TLSEXT_COOKIE; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
 
@@ -586,7 +585,7 @@ class BOTAN_UNSTABLE_API PSK_Key_Exchange_Modes final : public Extension
    {
    public:
       static Handshake_Extension_Type static_type()
-         { return TLSEXT_PSK_KEY_EXCHANGE_MODES; }
+         { return Handshake_Extension_Type::TLSEXT_PSK_KEY_EXCHANGE_MODES; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
 
@@ -613,7 +612,7 @@ class BOTAN_UNSTABLE_API Certificate_Authorities final : public Extension
    {
    public:
       static Handshake_Extension_Type static_type()
-         { return TLSEXT_CERTIFICATE_AUTHORITIES; }
+         { return Handshake_Extension_Type::TLSEXT_CERTIFICATE_AUTHORITIES; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
 
@@ -636,7 +635,7 @@ class BOTAN_UNSTABLE_API Certificate_Authorities final : public Extension
 class BOTAN_UNSTABLE_API PSK final : public Extension
    {
    public:
-      static Handshake_Extension_Type static_type() { return TLSEXT_PSK; }
+      static Handshake_Extension_Type static_type() { return Handshake_Extension_Type::TLSEXT_PSK; }
       Handshake_Extension_Type type() const override { return static_type(); }
 
       std::vector<uint8_t> serialize(Connection_Side side) const override;
@@ -681,7 +680,7 @@ class BOTAN_UNSTABLE_API Key_Share final : public Extension
    {
    public:
       static Handshake_Extension_Type static_type()
-         { return TLSEXT_KEY_SHARE; }
+         { return Handshake_Extension_Type::TLSEXT_KEY_SHARE; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
 
@@ -729,7 +728,7 @@ class BOTAN_UNSTABLE_API EarlyDataIndication final : public Extension
    {
    public:
       static Handshake_Extension_Type static_type()
-         { return TLSEXT_EARLY_DATA; }
+         { return Handshake_Extension_Type::TLSEXT_EARLY_DATA; }
 
       Handshake_Extension_Type type() const override { return static_type(); }
       std::vector<uint8_t> serialize(Connection_Side whoami) const override;

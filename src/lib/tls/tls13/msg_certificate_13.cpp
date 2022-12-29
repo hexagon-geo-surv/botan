@@ -183,8 +183,8 @@ Certificate_13::Certificate_13(const std::vector<uint8_t>& buf,
       //    extension [RFC6962]; future extensions may be defined for this
       //    message as well.
       if(entry.extensions.contains_implemented_extensions_other_than({
-            TLSEXT_CERT_STATUS_REQUEST,
-            // TLSEXT_SIGNED_CERTIFICATE_TIMESTAMP
+            Handshake_Extension_Type::TLSEXT_CERT_STATUS_REQUEST,
+            // Handshake_Extension_Type::TLSEXT_SIGNED_CERTIFICATE_TIMESTAMP
          }))
          {
          throw TLS_Exception(Alert::ILLEGAL_PARAMETER, "Certificate Entry contained an extension that is not allowed");
