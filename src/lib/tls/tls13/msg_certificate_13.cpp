@@ -35,7 +35,7 @@ bool certificate_allows_signing(const X509_Certificate& cert)
 
 }
 
-void Certificate_13::validate_extensions(const std::set<Handshake_Extension_Type>& requested_extensions, Callbacks& cb) const
+void Certificate_13::validate_extensions(const std::set<Extension_Code>& requested_extensions, Callbacks& cb) const
    {
    // RFC 8446 4.4.2
    //    Extensions in the Certificate message from the server MUST
@@ -183,8 +183,8 @@ Certificate_13::Certificate_13(const std::vector<uint8_t>& buf,
       //    extension [RFC6962]; future extensions may be defined for this
       //    message as well.
       if(entry.extensions.contains_implemented_extensions_other_than({
-            Handshake_Extension_Type::TLSEXT_CERT_STATUS_REQUEST,
-            // Handshake_Extension_Type::TLSEXT_SIGNED_CERTIFICATE_TIMESTAMP
+            Extension_Code::TLSEXT_CERT_STATUS_REQUEST,
+            // Extension_Code::TLSEXT_SIGNED_CERTIFICATE_TIMESTAMP
          }))
          {
          throw TLS_Exception(Alert::ILLEGAL_PARAMETER, "Certificate Entry contained an extension that is not allowed");
