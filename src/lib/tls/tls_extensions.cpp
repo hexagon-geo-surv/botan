@@ -25,7 +25,9 @@ std::unique_ptr<Extension> make_extension(TLS_Data_Reader& reader,
                                           const Connection_Side from,
                                           const Handshake_Type message_type)
    {
-   const uint16_t size = reader.remaining_bytes();
+   // This cast is safe because we read exactly a 16 bit length field for
+   // the extension in Extensions::deserialize
+   const uint16_t size = static_cast<uint16_t>(reader.remaining_bytes());
    switch(code)
       {
       case TLSEXT_SERVER_NAME_INDICATION:
