@@ -161,7 +161,7 @@ inline uint32_t SM4_Tp(uint32_t b)
 */
 void SM4::encrypt_n(const uint8_t in[], uint8_t out[], size_t blocks) const
    {
-   verify_key_set(m_RK.empty() == false);
+   assert_key_material_set();
 
 #if defined(BOTAN_HAS_SM4_ARMV8)
    if(CPUID::has_arm_sm4())
@@ -224,7 +224,7 @@ void SM4::encrypt_n(const uint8_t in[], uint8_t out[], size_t blocks) const
 */
 void SM4::decrypt_n(const uint8_t in[], uint8_t out[], size_t blocks) const
    {
-   verify_key_set(m_RK.empty() == false);
+   assert_key_material_set();
 
 #if defined(BOTAN_HAS_SM4_ARMV8)
    if(CPUID::has_arm_sm4())
@@ -284,6 +284,11 @@ void SM4::decrypt_n(const uint8_t in[], uint8_t out[], size_t blocks) const
 
 #undef SM4_E_RNDS
 #undef SM4_D_RNDS
+
+bool SM4::has_keying_material() const
+   {
+   return !m_RK.empty();
+   }
 
 /*
 * SM4 Key Schedule
