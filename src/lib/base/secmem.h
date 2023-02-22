@@ -13,6 +13,7 @@
 #include <vector> // IWYU pragma: export
 #include <algorithm>
 #include <deque>
+#include <span>
 #include <type_traits>
 
 namespace Botan {
@@ -77,6 +78,14 @@ template<typename T, typename Alloc, typename Alloc2>
 std::vector<T, Alloc>&
 operator+=(std::vector<T, Alloc>& out,
            const std::vector<T, Alloc2>& in)
+   {
+   out.insert(out.end(), in.begin(), in.end());
+   return out;
+   }
+
+template<typename T, typename Alloc>
+std::vector<T, Alloc>& operator+=(std::vector<T, Alloc>& out,
+                                  std::span<const T> in)
    {
    out.insert(out.end(), in.begin(), in.end());
    return out;
