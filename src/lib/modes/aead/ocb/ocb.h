@@ -31,8 +31,6 @@ class L_computer;
 class BOTAN_TEST_API OCB_Mode : public AEAD_Mode
    {
    public:
-      void set_associated_data(const uint8_t ad[], size_t ad_len) override final;
-
       std::string name() const override final;
 
       size_t update_granularity() const override final;
@@ -62,6 +60,8 @@ class BOTAN_TEST_API OCB_Mode : public AEAD_Mode
       size_t block_size() const { return m_block_size; }
       size_t par_blocks() const { return m_par_blocks; }
       size_t par_bytes() const { return m_checksum.size(); }
+
+      void set_ad_n(size_t idx, std::span<const uint8_t> ad) override final;
 
       // fixme make these private
       std::unique_ptr<BlockCipher> m_cipher;

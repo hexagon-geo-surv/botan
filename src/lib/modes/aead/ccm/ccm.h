@@ -23,8 +23,6 @@ class CCM_Mode : public AEAD_Mode
    public:
       size_t process(uint8_t buf[], size_t sz) override final;
 
-      void set_associated_data(const uint8_t ad[], size_t ad_len) override final;
-
       bool associated_data_requires_key() const override final { return false; }
 
       std::string name() const override final;
@@ -50,6 +48,8 @@ class CCM_Mode : public AEAD_Mode
       bool has_keying_material() const override final;
    protected:
       CCM_Mode(std::unique_ptr<BlockCipher> cipher, size_t tag_size, size_t L);
+
+      void set_ad_n(size_t idx, std::span<const uint8_t> ad) override final;
 
       size_t L() const { return m_L; }
 

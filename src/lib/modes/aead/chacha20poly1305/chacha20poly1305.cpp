@@ -58,11 +58,11 @@ void ChaCha20Poly1305_Mode::key_schedule(const uint8_t key[], size_t length)
    m_chacha->set_key(key, length);
    }
 
-void ChaCha20Poly1305_Mode::set_associated_data(const uint8_t ad[], size_t length)
+void ChaCha20Poly1305_Mode::set_ad_n(size_t /* ignored */, std::span<const uint8_t> ad)
    {
    if(m_ctext_len > 0 || m_nonce_len > 0)
       throw Invalid_State("Cannot set AD for ChaCha20Poly1305 while processing a message");
-   m_ad.assign(ad, ad + length);
+   m_ad.assign(ad.begin(), ad.end());
    }
 
 void ChaCha20Poly1305_Mode::update_len(size_t len)

@@ -94,9 +94,9 @@ void GCM_Mode::key_schedule(const uint8_t key[], size_t keylen)
    m_ghash->set_key(H);
    }
 
-void GCM_Mode::set_associated_data(const uint8_t ad[], size_t ad_len)
+void GCM_Mode::set_ad_n(size_t /* ignored */, std::span<const uint8_t> ad)
    {
-   m_ghash->set_associated_data(ad, ad_len);
+   m_ghash->set_associated_data(ad.data(), ad.size());
    }
 
 void GCM_Mode::start_msg(const uint8_t nonce[], size_t nonce_len)

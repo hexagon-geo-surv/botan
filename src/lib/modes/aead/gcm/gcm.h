@@ -24,8 +24,6 @@ class GHASH;
 class GCM_Mode : public AEAD_Mode
    {
    public:
-      void set_associated_data(const uint8_t ad[], size_t ad_len) override final;
-
       std::string name() const override final;
 
       size_t update_granularity() const override final;
@@ -49,6 +47,8 @@ class GCM_Mode : public AEAD_Mode
       GCM_Mode(std::unique_ptr<BlockCipher> cipher, size_t tag_size);
 
       ~GCM_Mode();
+
+      void set_ad_n(size_t idx, std::span<const uint8_t> ad) override final;
 
       static const size_t GCM_BS = 16;
 

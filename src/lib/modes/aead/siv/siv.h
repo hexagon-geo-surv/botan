@@ -25,20 +25,7 @@ class BOTAN_TEST_API SIV_Mode : public AEAD_Mode
    public:
       size_t process(uint8_t buf[], size_t size) override final;
 
-      /**
-      * Sets the nth element of the vector of associated data
-      * @param n index into the AD vector
-      * @param ad associated data
-      * @param ad_len length of associated data in bytes
-      */
-      void set_associated_data_n(size_t n, const uint8_t ad[], size_t ad_len) override final;
-
       size_t maximum_associated_data_inputs() const override final;
-
-      void set_associated_data(const uint8_t ad[], size_t ad_len) override final
-         {
-         set_associated_data_n(0, ad, ad_len);
-         }
 
       std::string name() const override final;
 
@@ -64,6 +51,13 @@ class BOTAN_TEST_API SIV_Mode : public AEAD_Mode
 
    protected:
       explicit SIV_Mode(std::unique_ptr<BlockCipher> cipher);
+
+      /**
+      * Sets the nth element of the vector of associated data
+      * @param n index into the AD vector
+      * @param ad associated data
+      */
+      void set_ad_n(size_t n, std::span<const uint8_t> ad) override final;
 
       size_t block_size() const { return m_bs; }
 

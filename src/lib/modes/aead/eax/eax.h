@@ -22,8 +22,6 @@ namespace Botan {
 class EAX_Mode : public AEAD_Mode
    {
    public:
-      void set_associated_data(const uint8_t ad[], size_t ad_len) override final;
-
       std::string name() const override final;
 
       size_t update_granularity() const override final;
@@ -51,6 +49,8 @@ class EAX_Mode : public AEAD_Mode
       EAX_Mode(std::unique_ptr<BlockCipher> cipher, size_t tag_size);
 
       size_t block_size() const { return m_cipher->block_size(); }
+
+      void set_ad_n(size_t idx, std::span<const uint8_t> ad) override final;
 
       size_t m_tag_size;
 

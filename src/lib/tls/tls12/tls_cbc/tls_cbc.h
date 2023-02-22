@@ -29,8 +29,6 @@ class BOTAN_TEST_API TLS_CBC_HMAC_AEAD_Mode : public AEAD_Mode
 
       std::string name() const override final;
 
-      void set_associated_data(const uint8_t ad[], size_t ad_len) override;
-
       size_t update_granularity() const override final;
 
       size_t ideal_granularity() const override final;
@@ -56,6 +54,8 @@ class BOTAN_TEST_API TLS_CBC_HMAC_AEAD_Mode : public AEAD_Mode
                              size_t mac_keylen,
                              Protocol_Version version,
                              bool use_encrypt_then_mac);
+
+      void set_ad_n(size_t idx, std::span<const uint8_t> ad) override;
 
       size_t cipher_keylen() const { return m_cipher_keylen; }
       size_t mac_keylen() const { return m_mac_keylen; }
@@ -127,13 +127,15 @@ class BOTAN_TEST_API TLS_CBC_HMAC_AEAD_Encryption final : public TLS_CBC_HMAC_AE
                                 use_encrypt_then_mac)
          {}
 
-      void set_associated_data(const uint8_t ad[], size_t ad_len) override;
-
       size_t output_length(size_t input_length) const override;
 
       size_t minimum_final_size() const override { return 0; }
 
       void finish(secure_vector<uint8_t>& final_block, size_t offset = 0) override;
+
+   protected:
+      void set_ad_n(size_t idx, std::span<const uint8_t> ad) override;
+
    private:
       void cbc_encrypt_record(secure_vector<uint8_t>& buffer, size_t offset,
                               size_t padding_length);

@@ -39,10 +39,10 @@
 
 namespace Botan {
 
-void AEAD_Mode::set_associated_data_n(size_t i, const uint8_t ad[], size_t ad_len)
+void AEAD_Mode::set_associated_data_n(size_t i, std::span<const uint8_t> ad)
    {
    if(i == 0)
-      this->set_associated_data(ad, ad_len);
+      this->set_ad_n(0, ad);
    else
       throw Invalid_Argument("AEAD '" + name() + "' does not support multiple associated data");
    }

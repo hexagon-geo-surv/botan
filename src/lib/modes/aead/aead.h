@@ -10,6 +10,8 @@
 
 #include <botan/cipher_mode.h>
 
+#include <span>
+
 namespace Botan {
 
 /**
@@ -54,9 +56,11 @@ class BOTAN_PUBLIC_API(2,0) AEAD_Mode : public Cipher_Mode
       * once (after set_key) is the optimum.
       *
       * @param ad the associated data
-      * @param ad_len length of add in bytes
       */
-      virtual void set_associated_data(const uint8_t ad[], size_t ad_len) = 0;
+      void set_associated_data(std::span<const uint8_t> ad)
+         { set_ad_n(0, ad); }
+      void set_associated_data(const uint8_t ad[], size_t ad_len)
+         { set_associated_data(std::span(ad, ad_len)); }
 
       /**
       * Set associated data that is not included in the ciphertext but
@@ -73,9 +77,10 @@ class BOTAN_PUBLIC_API(2,0) AEAD_Mode : public Cipher_Mode
       *
       * @param idx which associated data to set
       * @param ad the associated data
-      * @param ad_len length of add in bytes
       */
-      virtual void set_associated_data_n(size_t idx, const uint8_t ad[], size_t ad_len);
+      void set_associated_data_n(size_t idx, std::span<const uint8_t> ad);
+      void set_associated_data_n(size_t idx, const uint8_t ad[], size_t ad_len)
+         { set_associated_data_n(idx, std::span(ad, ad_len)); }
 
       /**
       * Returns the maximum supported number of associated data inputs which
@@ -116,8 +121,7 @@ class BOTAN_PUBLIC_API(2,0) AEAD_Mode : public Cipher_Mode
       *
       * @param ad the associated data
       */
-      template<typename Alloc>
-      void set_ad(const std::vector<uint8_t, Alloc>& ad)
+      void set_ad(std::span<const uint8_t> ad)
          {
          set_associated_data(ad.data(), ad.size());
          }
@@ -129,6 +133,14 @@ class BOTAN_PUBLIC_API(2,0) AEAD_Mode : public Cipher_Mode
       size_t default_nonce_length() const override { return 12; }
 
       virtual ~AEAD_Mode() = default;
+
+   protected:
+      /**
+       * Derived AEADs must implement this.
+       * If `maximum_associated_data_inputs()` returns 1 (the default), the
+       * @p idx must simply be ignored.
+       */
+      virtual void set_ad_n(size_t idx, std::span<const uint8_t> ad) = 0;
    };
 
 /**
