@@ -207,6 +207,18 @@ class BOTAN_PUBLIC_API(2,0) Public_Key : public virtual Asymmetric_Key
       virtual std::unique_ptr<PK_Ops::Verification>
          create_verification_op(const std::string& params,
                                 const std::string& provider) const;
+
+      /**
+      * This is an internal library function exposed on key types.
+      * In all cases applications should use wrappers in pubkey.h
+      *
+      * Return a verification operation for this key/params or throw
+      * @param signature_algorithm the X509 algorithm identifier
+      * @param provider the provider to use
+      */
+      virtual std::unique_ptr<PK_Ops::Verification>
+         create_x509_verification_op(const AlgorithmIdentifier& signature_algorithm,
+                                     const std::string& provider) const;
    };
 
 /**
