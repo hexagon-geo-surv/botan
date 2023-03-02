@@ -1681,6 +1681,30 @@ int botan_key_unwrap3394(const uint8_t wrapped_key[], size_t wrapped_key_len,
                          const uint8_t kek[], size_t kek_len,
                          uint8_t key[], size_t *key_len);
 
+BOTAN_PUBLIC_API(3,0)
+int botan_nist_kw_enc(const char* cipher_algo,
+                      const uint8_t key[], size_t key_len,
+                      const uint8_t kek[], size_t kek_len,
+                      uint8_t wrapped_key[], size_t *wrapped_key_len);
+
+BOTAN_PUBLIC_API(3,0)
+int botan_nist_kw_dec(const char* cipher_algo,
+                      const uint8_t wrapped_key[], size_t wrapped_key_len,
+                      const uint8_t kek[], size_t kek_len,
+                      uint8_t key[], size_t *key_len);
+
+BOTAN_PUBLIC_API(3,0)
+int botan_nist_kwp_enc(const char* cipher_algo,
+                       const uint8_t key[], size_t key_len,
+                       const uint8_t kek[], size_t kek_len,
+                       uint8_t wrapped_key[], size_t *wrapped_key_len);
+
+BOTAN_PUBLIC_API(3,0)
+int botan_nist_kwp_dec(const char* cipher_algo,
+                       const uint8_t wrapped_key[], size_t wrapped_key_len,
+                       const uint8_t kek[], size_t kek_len,
+                       uint8_t key[], size_t *key_len);
+
 /**
 * HOTP
 */
