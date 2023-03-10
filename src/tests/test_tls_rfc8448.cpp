@@ -297,26 +297,21 @@ class Test_TLS_13_Callbacks : public Botan::TLS::Callbacks
          return Callbacks::tls_verify_message(key, emsa, format, msg, sig);
          }
 
-      std::pair<secure_vector<uint8_t>, std::vector<uint8_t>> tls_dh_agree(
-               const std::vector<uint8_t>& modulus,
-               const std::vector<uint8_t>& generator,
-               const std::vector<uint8_t>& peer_public_value,
-               const Policy& policy,
-               RandomNumberGenerator& rng) override
+      std::unique_ptr<PK_Key_Agreement_Key> tls_generate_ephemeral_key(
+               const std::variant<TLS::Group_Params, DL_Group> group, RandomNumberGenerator& rng) override
          {
-         count_callback_invocation("tls_dh_agree");
-         return Callbacks::tls_dh_agree(modulus, generator, peer_public_value, policy, rng);
+         count_callback_invocation("tls_generate_ephemeral_key");
+         return Callbacks::tls_generate_ephemeral_key(group, rng);
          }
 
-      std::pair<secure_vector<uint8_t>, std::vector<uint8_t>> tls_ecdh_agree(
-               const std::string& curve_name,
-               const std::vector<uint8_t>& peer_public_value,
-               const Policy& policy,
-               RandomNumberGenerator& rng,
-               bool compressed) override
+      secure_vector<uint8_t> tls_ephemeral_key_agreement(const std::variant<TLS::Group_Params, DL_Group> group,
+                                                         const PK_Key_Agreement_Key& private_key,
+                                                         const std::vector<uint8_t>& public_value,
+                                                         RandomNumberGenerator& rng,
+                                                         const Policy& policy) override
          {
-         count_callback_invocation("tls_ecdh_agree");
-         return Callbacks::tls_ecdh_agree(curve_name, peer_public_value, policy, rng, compressed);
+         count_callback_invocation("tls_ephemeral_key_agreement");
+         return Callbacks::tls_ephemeral_key_agreement(group, private_key, public_value, rng, policy);
          }
 
       void tls_inspect_handshake_msg(const Handshake_Message& message) override
@@ -356,12 +351,6 @@ class Test_TLS_13_Callbacks : public Botan::TLS::Callbacks
          {
          count_callback_invocation(std::string("tls_examine_extensions_") + handshake_type_to_string(which_message));
          return Callbacks::tls_examine_extensions(extn, which_side, which_message);
-         }
-
-      std::string tls_decode_group_param(Group_Params group_param) override
-         {
-         count_callback_invocation("tls_decode_group_param");
-         return Callbacks::tls_decode_group_param(group_param);
          }
 
       std::string tls_peer_network_identity() override
@@ -1027,7 +1016,8 @@ class Test_TLS_RFC8448_Client : public Test_TLS_RFC8448
                   {
                   "tls_emit_data",
                   "tls_inspect_handshake_msg_client_hello",
-                  "tls_modify_extensions_client_hello"
+                  "tls_modify_extensions_client_hello",
+                  "tls_generate_ephemeral_key",
                   });
 
                result.test_eq("TLS client hello", ctx->pull_send_buffer(), vars.get_req_bin("Record_ClientHello_1"));
@@ -1048,7 +1038,8 @@ class Test_TLS_RFC8448_Client : public Test_TLS_RFC8448
                ctx->check_callback_invocations(result, "server hello received",
                   {
                   "tls_inspect_handshake_msg_server_hello",
-                  "tls_examine_extensions_server_hello"
+                  "tls_examine_extensions_server_hello",
+                  "tls_ephemeral_key_agreement"
                   });
 
                result.confirm("client is not yet active", !ctx->client.is_active());
@@ -1184,7 +1175,8 @@ class Test_TLS_RFC8448_Client : public Test_TLS_RFC8448
                   "tls_emit_data",
                   "tls_inspect_handshake_msg_client_hello",
                   "tls_modify_extensions_client_hello",
-                  "tls_current_timestamp"
+                  "tls_current_timestamp",
+                  "tls_generate_ephemeral_key",
                   });
 
                result.test_eq("TLS client hello", ctx->pull_send_buffer(), vars.get_req_bin("Record_ClientHello_1"));
@@ -1242,6 +1234,7 @@ class Test_TLS_RFC8448_Client : public Test_TLS_RFC8448
                   "tls_emit_data",
                   "tls_inspect_handshake_msg_client_hello",
                   "tls_modify_extensions_client_hello",
+                  "tls_generate_ephemeral_key",
                   });
 
                result.test_eq("TLS client hello (1)", ctx->pull_send_buffer(), vars.get_req_bin("Record_ClientHello_1"));
@@ -1259,7 +1252,7 @@ class Test_TLS_RFC8448_Client : public Test_TLS_RFC8448
                   "tls_examine_extensions_hello_retry_request",
                   "tls_inspect_handshake_msg_client_hello",
                   "tls_modify_extensions_client_hello",
-                  "tls_decode_group_param"
+                  "tls_generate_ephemeral_key",
                   });
 
                result.test_eq("TLS client hello (2)", ctx->pull_send_buffer(), vars.get_req_bin("Record_ClientHello_2"));
@@ -1274,7 +1267,7 @@ class Test_TLS_RFC8448_Client : public Test_TLS_RFC8448
                   {
                   "tls_inspect_handshake_msg_server_hello",
                   "tls_examine_extensions_server_hello",
-                  "tls_decode_group_param"
+                  "tls_ephemeral_key_agreement",
                   });
                }),
 
@@ -1349,6 +1342,7 @@ class Test_TLS_RFC8448_Client : public Test_TLS_RFC8448
                   "tls_emit_data",
                   "tls_inspect_handshake_msg_client_hello",
                   "tls_modify_extensions_client_hello",
+                  "tls_generate_ephemeral_key",
                   });
 
                result.test_eq("Client Hello", ctx->pull_send_buffer(), vars.get_req_bin("Record_ClientHello_1"));
@@ -1361,6 +1355,7 @@ class Test_TLS_RFC8448_Client : public Test_TLS_RFC8448
                ctx->check_callback_invocations(result, "callbacks after server hello", {
                   "tls_examine_extensions_server_hello",
                   "tls_inspect_handshake_msg_server_hello",
+                  "tls_ephemeral_key_agreement",
                   });
                }),
 
@@ -1442,6 +1437,7 @@ class Test_TLS_RFC8448_Client : public Test_TLS_RFC8448
                   "tls_emit_data",
                   "tls_inspect_handshake_msg_client_hello",
                   "tls_modify_extensions_client_hello",
+                  "tls_generate_ephemeral_key",
                   });
                }),
 
@@ -1464,7 +1460,8 @@ class Test_TLS_RFC8448_Client : public Test_TLS_RFC8448
                   "tls_emit_data",
                   "tls_session_activated",
                   "tls_verify_cert_chain",
-                  "tls_verify_message"
+                  "tls_verify_message",
+                  "tls_ephemeral_key_agreement",
                   });
 
                result.test_eq("CCS + Client Finished", ctx->pull_send_buffer(),
@@ -1532,6 +1529,8 @@ class Test_TLS_RFC8448_Server : public Test_TLS_RFC8448
                   "tls_modify_extensions_encrypted_extensions",
                   "tls_modify_extensions_certificate",
                   "tls_sign_message",
+                  "tls_generate_ephemeral_key",
+                  "tls_ephemeral_key_agreement",
                   "tls_inspect_handshake_msg_client_hello",
                   "tls_inspect_handshake_msg_server_hello",
                   "tls_inspect_handshake_msg_encrypted_extensions",
@@ -1668,6 +1667,8 @@ class Test_TLS_RFC8448_Server : public Test_TLS_RFC8448
                ctx->check_callback_invocations(result, "client hello received", {
                   "tls_emit_data",
                   "tls_current_timestamp",
+                  "tls_generate_ephemeral_key",
+                  "tls_ephemeral_key_agreement",
                   "tls_examine_extensions_client_hello",
                   "tls_modify_extensions_server_hello",
                   "tls_modify_extensions_encrypted_extensions",
@@ -1757,7 +1758,8 @@ class Test_TLS_RFC8448_Server : public Test_TLS_RFC8448
                   "tls_modify_extensions_encrypted_extensions",
                   "tls_modify_extensions_certificate",
                   "tls_sign_message",
-                  "tls_decode_group_param",
+                  "tls_generate_ephemeral_key",
+                  "tls_ephemeral_key_agreement",
                   "tls_inspect_handshake_msg_client_hello",
                   "tls_inspect_handshake_msg_server_hello",
                   "tls_inspect_handshake_msg_encrypted_extensions",
@@ -1849,6 +1851,8 @@ class Test_TLS_RFC8448_Server : public Test_TLS_RFC8448
                   "tls_modify_extensions_encrypted_extensions",
                   "tls_modify_extensions_certificate",
                   "tls_sign_message",
+                  "tls_generate_ephemeral_key",
+                  "tls_ephemeral_key_agreement",
                   "tls_inspect_handshake_msg_client_hello",
                   "tls_inspect_handshake_msg_server_hello",
                   "tls_inspect_handshake_msg_encrypted_extensions",
@@ -1956,6 +1960,8 @@ class Test_TLS_RFC8448_Server : public Test_TLS_RFC8448
                   "tls_modify_extensions_encrypted_extensions",
                   "tls_modify_extensions_certificate",
                   "tls_sign_message",
+                  "tls_generate_ephemeral_key",
+                  "tls_ephemeral_key_agreement",
                   "tls_inspect_handshake_msg_client_hello",
                   "tls_inspect_handshake_msg_server_hello",
                   "tls_inspect_handshake_msg_encrypted_extensions",
