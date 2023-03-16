@@ -127,19 +127,8 @@ class BOTAN_PUBLIC_API(2,0) Buffered_Computation
       * @param in the input to process
       * @result the result of the call to final()
       */
-      secure_vector<uint8_t> process(const secure_vector<uint8_t>& in)
-         {
-         add_data(in.data(), in.size());
-         return final();
-         }
-
-      /**
-      * Update and finalize computation. Does the same as calling update()
-      * and final() consecutively.
-      * @param in the input to process
-      * @result the result of the call to final()
-      */
-      secure_vector<uint8_t> process(const std::vector<uint8_t>& in)
+      template<typename Alloc>
+      secure_vector<uint8_t> process(const std::vector<uint8_t, Alloc>& in)
          {
          add_data(in.data(), in.size());
          return final();
