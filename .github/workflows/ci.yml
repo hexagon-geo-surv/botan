@@ -134,7 +134,7 @@ jobs:
     runs-on: ${{ matrix.host_os }}
 
     env:
-      COVERALLS_REPO_TOKEN=pbLoTMBxC1DFvbws9WfrzVOvfEdEZTcCS
+      COVERALLS_REPO_TOKEN: pbLoTMBxC1DFvbws9WfrzVOvfEdEZTcCS
 
     steps:
       - uses: actions/checkout@v3
