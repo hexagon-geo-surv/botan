@@ -121,9 +121,6 @@ jobs:
         run: python3 ./src/scripts/ci_build.py --cc='${{ matrix.compiler }}' --test-results-dir=junit_results ${{ matrix.target }}
 
   analysis:
-    env:
-      COVERALLS_REPO_TOKEN=pbLoTMBxC1DFvbws9WfrzVOvfEdEZTcCS
-
     name: "Analysis"
     strategy:
       fail-fast: false
@@ -135,6 +132,9 @@ jobs:
             host_os: ubuntu-22.04
 
     runs-on: ${{ matrix.host_os }}
+
+    env:
+      COVERALLS_REPO_TOKEN=pbLoTMBxC1DFvbws9WfrzVOvfEdEZTcCS
 
     steps:
       - uses: actions/checkout@v3
