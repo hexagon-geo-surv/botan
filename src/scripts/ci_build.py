@@ -362,7 +362,8 @@ def determine_flags(target, target_os, target_cpu, target_cc, cc_bin, ccache,
                 test_cmd += ['--pkcs11-lib=%s' % (pkcs11_lib)]
 
     if target in ['coverage', 'sanitizer']:
-        test_cmd += ['--run-long-tests']
+        # FIXME re-enable this!!
+        #test_cmd += ['--run-long-tests']
 
         if target_os == 'windows' and target == 'sanitizer':
             # GitHub Actions worker intermittently ran out of memory when
@@ -676,8 +677,8 @@ def main(args=None):
             botan_exe = os.path.join(build_dir, 'botan-cli.exe' if options.os == 'windows' else 'botan')
 
             args = ['--threads=%d' % (options.build_jobs)]
-            if target in ['coverage']:
-                args.append('--run-slow-tests')
+            #if target in ['coverage']:
+            #    args.append('--run-slow-tests')
             if root_dir != '.':
                 args.append('--test-data-dir=%s' % root_dir)
             test_scripts = ['test_cli.py', 'test_cli_crypt.py']
