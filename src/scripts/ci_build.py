@@ -722,7 +722,7 @@ def main(args=None):
 
             if have_prog('coveralls'):
                 # If codecov exists assume we are in CI and report to coveralls.io
-                cmds.append(['indir:%s' % root_dir, 'coveralls', '--format=lcov', cov_file])
+                cmds.append(['coveralls', '--format=lcov', cov_file])
             else:
                 # Otherwise generate a local HTML report
                 cmds.append(['genhtml', cov_file, '--output-directory', os.path.join(build_dir, 'lcov-out')])
