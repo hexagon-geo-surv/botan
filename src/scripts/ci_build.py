@@ -713,8 +713,7 @@ def main(args=None):
 
             if have_prog('codecov'):
                 # If codecov exists assume we are in CI and report to codecov.io
-                cmds.append(['indir:%s' % root_dir, 'codecov', '--required', '--gcov-root', build_dir,
-                             '>', os.path.join(build_dir, 'codecov_stdout.log')])
+                cmds.append(['indir:%s' % root_dir, 'codecov', '--required', '--gcov-root', build_dir])
             else:
                 # Otherwise generate a local HTML report
                 cov_file = os.path.join(build_dir, 'coverage.info')
