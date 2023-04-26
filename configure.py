@@ -3186,8 +3186,10 @@ def calculate_cc_min_version(options, ccinfo, source_paths):
 
     unknown_pattern = r'UNKNOWN 0 0'
 
-    if ccinfo.basename not in version_patterns:
-        logging.info("No compiler version detection available for %s", ccinfo.basename)
+    cxx = ccinfo.basename
+
+    if cxx not in version_patterns:
+        logging.info("No compiler version detection available for %s", cxx)
         return "0.0"
 
     detect_version_source = os.path.join(source_paths.build_data_dir, "detect_version.cpp")
@@ -3195,19 +3197,26 @@ def calculate_cc_min_version(options, ccinfo, source_paths):
     cc_output = run_compiler_preproc(options, ccinfo, detect_version_source, "0.0")
 
     if re.search(unknown_pattern, cc_output) is not None:
-        logging.warning('Failed to get version for %s from macro check', ccinfo.basename)
+        logging.warning('Failed to get version for %s from macro check', cxx)
         return "0.0"
 
-    match = re.search(version_patterns[ccinfo.basename], cc_output, flags=re.MULTILINE)
+    match = re.search(version_patterns[cxx], cc_output, flags=re.MULTILINE)
     if match is None:
         logging.warning("Tried to get %s version, but output '%s' is unexpected",
-                        ccinfo.basename, cc_output)
+                        cxx, cc_output)
         return "0.0"
 
     major_version = int(match.group(1), 0)
     minor_version = int(match.group(2), 0)
     cc_version = "%d.%d" % (major_version, minor_version)
-    logging.info('Auto-detected compiler version %s', cc_version)
+    logging.info('Auto-detected compiler version %s %s', cxx, cc_version)
+
+    if cxx == 'gcc' and major_version < 11:
+        logging.error('This version of Botan requires at least GCC 11')
+    elif cxx == 'clang' and major_version < 14:
+        logging.error('This version of Botan requires at least Clang 14')
+    elif cxx == 'msvc' and (major_version < 19 or (major_version == 19 and minor_version < 30)):
+        logging.error('This version of Botan requires at least Visual C++ 2022')
 
     return cc_version
 
