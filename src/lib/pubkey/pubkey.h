@@ -744,8 +744,8 @@ class BOTAN_PUBLIC_API(2, 0) PK_KEM_Decryptor final {
       PK_KEM_Decryptor(const PK_KEM_Decryptor&) = delete;
       PK_KEM_Decryptor& operator=(const PK_KEM_Decryptor&) = delete;
 
-      PK_KEM_Decryptor(PK_KEM_Decryptor&&) = default;
-      PK_KEM_Decryptor& operator=(PK_KEM_Decryptor&&) = default;
+      PK_KEM_Decryptor(PK_KEM_Decryptor&&) = delete;
+      PK_KEM_Decryptor& operator=(PK_KEM_Decryptor&&) = delete;
 
       /**
       * Return the length of the shared key returned by this KEM
