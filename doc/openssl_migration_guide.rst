@@ -150,7 +150,7 @@ Here is the equivalent C++ code using Botan:
         return 0;
     }
 
-This snipped uses the ``AutoSeeded_RNG`` class to generate the 16 random bytes. Botan provides different
+This snippet uses the ``AutoSeeded_RNG`` class to generate the 16 random bytes. Botan provides different
 :ref:`api_ref/rng:random number generators`, including system-specific as well as system-independent
 software and hardware-based generators, and a comprehensive interface for implementing
 your own random number generator, if required. ``AutoSeeded_RNG`` is the recommended random number
