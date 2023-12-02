@@ -155,8 +155,78 @@ This snippet uses the ``AutoSeeded_RNG`` class to generate the 16 random bytes. 
 software and hardware-based generators, and a comprehensive interface for implementing
 your own random number generator, if required. ``AutoSeeded_RNG`` is the recommended random number
 generator for most applications.
-The ``randomize()`` function takes a pointer to the buffer and the size of the buffer as arguments.
+The ``random_vec()`` function returns the requested number of random bytes passed.
 Botan provides a ``hex_encode()`` function that converts the random bytes to a hexadecimal string.
+
+Hash Functions
+---------------
+
+Consider the following application code to hash some data using OpenSSL.
+
+.. code-block:: cpp
+
+    #include <openssl/evp.h>
+    #include <openssl/sha.h>
+    #include <iostream>
+    #include <vector>
+
+    void printHash(EVP_MD_CTX* ctx, const std::string& name) {
+        unsigned char hash[EVP_MAX_MD_SIZE];
+        unsigned int lengthOfHash = 0;
+
+        EVP_DigestFinal_ex(ctx, hash, &lengthOfHash);
+
+        std::cout << name << ": ";
+        for(unsigned int i = 0; i < lengthOfHash; ++i) {
+            std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
+        }
+        std::cout << std::endl;
+    }
+
+    int main() {
+        EVP_MD_CTX *ctx1 = EVP_MD_CTX_new();
+        EVP_MD_CTX *ctx2 = EVP_MD_CTX_new();
+        EVP_MD_CTX *ctx3 = EVP_MD_CTX_new();
+
+        EVP_DigestInit_ex(ctx1, EVP_sha256(), NULL);
+        EVP_DigestInit_ex(ctx2, EVP_sha384(), NULL);
+        EVP_DigestInit_ex(ctx3, EVP_sha3_512(), NULL);
+
+        std::vector<uint8_t> buffer(2048);
+        while(std::cin.good()) {
+            std::cin.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
+            std::streamsize bytesRead = std::cin.gcount();
+
+            EVP_DigestUpdate(ctx1, buffer.data(), bytesRead);
+            EVP_DigestUpdate(ctx2, buffer.data(), bytesRead);
+            EVP_DigestUpdate(ctx3, buffer.data(), bytesRead);
+        }
+
+        printHash(ctx1, "SHA-256");
+        printHash(ctx2, "SHA-384");
+        printHash(ctx3, "SHA-3-512");
+
+        EVP_MD_CTX_free(ctx1);
+        EVP_MD_CTX_free(ctx2);
+        EVP_MD_CTX_free(ctx3);
+
+        return 0;
+    }
+
+This example uses the ``EVP_DigestInit_ex()``, ``EVP_DigestUpdate()``, and ``EVP_DigestFinal_ex()``
+functions to hash data using SHA-256, SHA-384, and SHA-3-512. The ``printHash()`` function is used
+to print the hash values in hexadecimal format.
+
+Here is the equivalent C++ code using Botan:
+
+.. literalinclude:: /../src/examples/hash.cpp
+   :language: cpp
+
+This example uses the ``HashFunction`` interface to hash data using SHA-256, SHA-384, and SHA-3-512.
+The ``hash()`` function is used to hash the data and the ``output_length()`` function is used to
+determine the length of the hash value. Botan provides a comprehensive list of
+:doc:`hash functions <api_ref/hash>`, including all SHA-2 and SHA-3 variants, as well as
+:doc:`message authentication codes <api_ref/message_auth_codes>` and :doc:`key derivation functions <api_ref/kdf>`.
 
 Symmetric Encryption
 ---------------------
@@ -211,7 +281,7 @@ Consider the following application code to encrypt some data with AES using Open
 
 This example uses the ``AES_set_encrypt_key()`` and ``AES_encrypt()`` functions to encrypt
 a 128-bit plaintext block with a 256-bit key using AES. The key and plaintext block
-are hex-encoded and converted to binary before encryption.
+are hex-decoded and converted to binary before encryption.
 The ``AES_set_decrypt_key()`` and ``AES_decrypt()`` functions are used to decrypt the ciphertext.
 
 Here is the equivalent C++ code using Botan:
