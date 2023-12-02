@@ -142,8 +142,7 @@ Here is the equivalent C++ code using Botan:
     int main() {
         Botan::AutoSeeded_RNG rng;
 
-        Botan::secure_vector<uint8_t> buffer(16); // Buffer to hold 16 random bytes
-        rng.randomize(buffer.data(), buffer.size());
+        const Botan::secure_vector<uint8_t> buffer = rng.random_vec(16);
 
         // Print the random bytes in hexadecimal format
         std::cout << Botan::hex_encode(buffer) << std::endl;
