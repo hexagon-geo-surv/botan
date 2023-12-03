@@ -7,6 +7,11 @@ This guide attempts to be, but is not, complete. If you run into a problem while
 migrating code that does not seem to be described here, please open an issue on
 `GitHub <https://github.com/randombit/botan/issues>`_.
 
+.. note::
+   The OpenSSL code snippets in this guide may not be 100% correct. They are
+   intended to show the differences in using OpenSSL's and Botan's APIs
+   rather to be a complete and correct example.
+
 General Remarks
 ----------------
 
@@ -233,7 +238,7 @@ Symmetric Encryption
 
 Consider the following application code to encrypt some data with AES using OpenSSL.
 
-.. code-block:: c
+.. code-block:: cpp
 
     #include <openssl/aes.h>
     #include <openssl/evp.h>
@@ -255,50 +260,41 @@ Consider the following application code to encrypt some data with AES using Open
         }
 
         // Encrypt
-        unsigned char ciphertext[16];
-        AES_KEY encrypt_key;
-        AES_set_encrypt_key(key, 256, &encrypt_key);
-        AES_encrypt(plaintext, ciphertext, &encrypt_key);
+        unsigned char ciphertext[16], iv_enc[AES_BLOCK_SIZE] = {0};
+        EVP_CIPHER_CTX *ctx_enc = EVP_CIPHER_CTX_new();
+        EVP_EncryptInit_ex(ctx_enc, EVP_aes_256_cbc(), NULL, key, iv_enc);
+        int outlen1;
+        EVP_EncryptUpdate(ctx_enc, ciphertext, &outlen1, plaintext, sizeof(plaintext));
+        EVP_EncryptFinal_ex(ctx_enc, ciphertext + outlen1, &outlen1);
 
-        // Decrypt
-        unsigned char decrypted[16];
-        AES_KEY decrypt_key;
-        AES_set_decrypt_key(key, 256, &decrypt_key);
-        AES_decrypt(ciphertext, decrypted, &decrypt_key);
-
-        // Print ciphertext and decrypted plaintext in hexadecimal format
+        // Print ciphertext in hexadecimal format
         for(int i = 0; i < 16; i++) {
             printf("%02X", ciphertext[i]);
-        }
-        printf("\n");
-        for(int i = 0; i < 16; i++) {
-            printf("%02X", decrypted[i]);
         }
         printf("\n");
 
         return 0;
     }
 
-This example uses the ``AES_set_encrypt_key()`` and ``AES_encrypt()`` functions to encrypt
-a 128-bit plaintext block with a 256-bit key using AES. The key and plaintext block
+This example uses the ``EVP_EncryptInit_ex()``, ``EVP_EncryptUpdate()``, and ``EVP_EncryptFinal_ex()``
+functions to encrypt a 128-bit plaintext block with a 256-bit key using AES. The key and plaintext block
 are hex-decoded and converted to binary before encryption.
-The ``AES_set_decrypt_key()`` and ``AES_decrypt()`` functions are used to decrypt the ciphertext.
 
 Here is the equivalent C++ code using Botan:
 
-.. literalinclude:: /../src/examples/aes.cpp
+.. literalinclude:: /../src/examples/aes_cbc.cpp
    :language: cpp
 
-This example uses the ``AES_256`` cipher to encrypt a 128-bit plaintext block with a 256-bit
-key using AES. The key and plaintext block are hex-encoded and converted to binary before encryption.
-``set_key()`` is used to set the key and ``encrypt()`` is used to encrypt the plaintext block.
-Then, the ``AES_256`` object is even reused to encrypt a second plaintext with a different key.
+This example uses the ``CipherMode`` interface to encrypt a 128-bit plaintext block
+with a 256-bit key using AES in CBC mode with PKCS#7 padding.
+The ``set_key()`` function is used to set the key and the ``start()`` and ``finish()`` functions
+are used to encrypt the plaintext block.
 
 To learn more about the ``BlockCipher`` and ``CipherMode`` interfaces, including a list of all
 available block ciphers and cipher modes, see the :ref:`api_ref/block_cipher:block ciphers` and
 :ref:`api_ref/cipher_modes:cipher modes` handbook sections.
 
-Asymmetric Encryption/Signatures
+Asymmetric Encryption
 ---------------------------------
 
 Consider the following application code to encrypt some data with RSA using OpenSSL.
@@ -332,8 +328,8 @@ Consider the following application code to encrypt some data with RSA using Open
         fclose(privKeyFile);
 
         // String to encrypt
-        unsigned char* plaintext = (unsigned char*)"Your great-grandfather gave this watch to your granddad for good luck. Unfortunately, Dane's luck wasn't as good as his old man's.";
-        size_t plaintext_len = strlen((char*)plaintext);
+        unsigned char* plaintext = "Your great-grandfather gave this watch to your granddad for good luck. Unfortunately, Dane's luck wasn't as good as his old man's.";
+        size_t plaintext_len = strlen(plaintext);
 
         // Encrypt
         EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pubKey, NULL);
@@ -391,24 +387,35 @@ a message using :ref:`api_ref/pubkey:rsa`. The public and private keys are
 :ref:`loaded from files <api_ref/pubkey:serializing private keys using pkcs #8>`.
 The padding scheme and :doc:`hash function <api_ref/hash>` are passed as a string parameter.
 
+Asymmetric Signatures
+----------------------------
+
 Consider the following application code to sign some data with ECDSA using OpenSSL.
 
 .. code-block:: cpp
 
+    #include <openssl/ec.h>
+    #include <openssl/obj_mac.h>
+    #include <openssl/err.h>
     #include <openssl/ecdsa.h>
     #include <openssl/pem.h>
     #include <openssl/sha.h>
     #include <iostream>
 
     int main() {
-        // Load private key
-        FILE* privKeyFile = fopen("private.pem", "r");
-        if(privKeyFile == NULL) {
-            std::cerr << "Error opening private key file.\n";
+        EC_KEY *ec_key = EC_KEY_new_by_curve_name(NID_secp521r1);
+
+        if(ec_key == NULL) {
+            fprintf(stderr, "Error creating EC_KEY structure.\n");
             return 1;
         }
-        EC_KEY* ec_key = PEM_read_ECPrivateKey(privKeyFile, NULL, NULL, NULL);
-        fclose(privKeyFile);
+
+        if(!EC_KEY_generate_key(ec_key)) {
+            fprintf(stderr, "Error generating key.\n");
+            ERR_print_errors_fp(stderr);
+            EC_KEY_free(ec_key);
+            return 1;
+        }
 
         // String to sign
         std::string plaintext = "This is a tasty burger!";
@@ -437,7 +444,6 @@ Consider the following application code to sign some data with ECDSA using OpenS
         ECDSA_SIG_free(sig);
         OPENSSL_free(r_hex);
         OPENSSL_free(s_hex);
-
         return 0;
     }
 
