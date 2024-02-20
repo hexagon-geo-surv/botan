@@ -73,7 +73,7 @@ API follows a few simple rules:
          #define BOTAN_FFI_EXPORT(maj, min) __attribute__((visibility("default")))
       #endif
    #elif defined(_MSC_VER)
-      #define BOTAN_FFI_DEPRECATED(msg) __declspec(dllimport)
+      #define BOTAN_FFI_EXPORT(msg) __declspec(dllimport)
    #else
       #define BOTAN_FFI_EXPORT(maj, min)
    #endif
