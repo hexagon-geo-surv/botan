@@ -72,7 +72,7 @@ API follows a few simple rules:
       #if __has_attribute(visibility)
          #define BOTAN_FFI_EXPORT(maj, min) __attribute__((visibility("default")))
       #endif
-   #elif defined(_MSC_VER)
+   #elif defined(_MSC_VER) && !defined(BOTAN_IS_BEING_BUILT)
       #define BOTAN_FFI_EXPORT(maj, min) __declspec(dllimport)
    #else
       #define BOTAN_FFI_EXPORT(maj, min)
