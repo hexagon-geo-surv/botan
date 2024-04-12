@@ -325,17 +325,24 @@ uint64_t OS::get_system_timestamp_ns() {
    return std::chrono::duration_cast<std::chrono::nanoseconds>(now).count();
 }
 
-std::string format_time(time_t time, const std::string& format) {
+std::string OS::format_time(time_t time, const std::string& format) {
    std::tm tm;
 
-#if defined(BOTAN_BUILD_COMPILER_IS_MSVC) || defined(BOTAN_TARGET_OS_IS_MINGW) || \
-   defined(BOTAN_TARGET_OS_IS_CYGWIN) || defined(BOTAN_TARGET_OS_IS_WINDOWS)
-   localtime_s(&tm, time);
+#if defined(BOTAN_TARGET_OS_HAS_WIN32)
+   localtime_s(&tm, &time);
+#elif defined(BOTAN_TARGET_OS_HAS_POSIX1)
+   localtime_r(&time, &tm);
 #else
-   localtime_r(time, &tm);
+   if(auto tmp = std::localtime(&time)) {
+      tm = *tmp;
+   } else {
+      throw Encoding_Error("Could not convert time_t to localtime");
+   }
 #endif
 
-   return std::put_time(tm, format.c_str());
+   std::ostringstream oss;
+   oss << std::put_time(&tm, format.c_str());
+   return oss.str();
 }
 
 size_t OS::system_page_size() {

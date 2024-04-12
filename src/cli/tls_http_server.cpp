@@ -63,7 +63,7 @@ using tcp_stream = typename beast::tcp_stream::rebind_executor<
 
 class Logger final {
    private:
-      auto timestamp() const {
+      std::string timestamp() const {
          return Botan::OS::format_time(std::time(nullptr), "%c");
       }
 
