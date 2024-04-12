@@ -64,17 +64,7 @@ using tcp_stream = typename beast::tcp_stream::rebind_executor<
 class Logger final {
    private:
       auto timestamp() const {
-         const auto t = std::time(nullptr);
-         struct tm tm;
-
-   #if defined(BOTAN_BUILD_COMPILER_IS_MSVC) || defined(BOTAN_TARGET_OS_IS_MINGW) || \
-      defined(BOTAN_TARGET_OS_IS_CYGWIN) || defined(BOTAN_TARGET_OS_IS_WINDOWS)
-         localtime_s(&tm, &t);
-   #else
-         localtime_r(&t, &tm);
-   #endif
-
-         return std::put_time(&tm, "%c");
+         return Botan::OS::format_time(std::time(nullptr), "%c");
       }
 
    public:

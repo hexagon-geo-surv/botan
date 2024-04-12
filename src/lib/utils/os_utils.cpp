@@ -325,6 +325,19 @@ uint64_t OS::get_system_timestamp_ns() {
    return std::chrono::duration_cast<std::chrono::nanoseconds>(now).count();
 }
 
+std::string format_time(time_t time, const std::string& format) {
+   std::tm tm;
+
+#if defined(BOTAN_BUILD_COMPILER_IS_MSVC) || defined(BOTAN_TARGET_OS_IS_MINGW) || \
+   defined(BOTAN_TARGET_OS_IS_CYGWIN) || defined(BOTAN_TARGET_OS_IS_WINDOWS)
+   localtime_s(&tm, time);
+#else
+   localtime_r(time, &tm);
+#endif
+
+   return std::put_time(tm, format.c_str());
+}
+
 size_t OS::system_page_size() {
    const size_t default_page_size = 4096;
 
