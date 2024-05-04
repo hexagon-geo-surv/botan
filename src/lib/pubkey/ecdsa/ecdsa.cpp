@@ -169,7 +169,7 @@ secure_vector<uint8_t> ECDSA_Signature_Operation::raw_sign(const uint8_t msg[],
    const auto k = EC_Group::Scalar::random(m_group, rng);
 #endif
 
-   const auto r = EC_Group::Scalar::x_coord_of_gk_mod_order(k, rng, m_ws);
+   const auto r = EC_Group::Scalar::gk_x_mod_order(k, rng, m_ws);
 
    const auto k_inv = k.invert();
 
@@ -200,50 +200,35 @@ class ECDSA_Verification_Operation final : public PK_Ops::Verification_with_Hash
       ECDSA_Verification_Operation(const ECDSA_PublicKey& ecdsa, std::string_view padding) :
             PK_Ops::Verification_with_Hash(padding),
             m_group(ecdsa.domain()),
-            m_gy_mul(m_group.get_base_point(), ecdsa.public_point()) {}
+            m_gy_mul(ecdsa.public_point()) {}
 
       ECDSA_Verification_Operation(const ECDSA_PublicKey& ecdsa, const AlgorithmIdentifier& alg_id) :
             PK_Ops::Verification_with_Hash(alg_id, "ECDSA", true),
             m_group(ecdsa.domain()),
-            m_gy_mul(m_group.get_base_point(), ecdsa.public_point()) {}
+            m_gy_mul(ecdsa.public_point()) {}
 
       bool verify(const uint8_t msg[], size_t msg_len, const uint8_t sig[], size_t sig_len) override;
 
    private:
       const EC_Group m_group;
+      const EC_Group::Mul2_Table m_gy_mul;
       const EC_Point_Multi_Point_Precompute m_gy_mul;
 };
 
 bool ECDSA_Verification_Operation::verify(const uint8_t msg[], size_t msg_len, const uint8_t sig[], size_t sig_len) {
-   if(sig_len != m_group.get_order_bytes() * 2) {
-      return false;
-   }
+   auto [r, s] = EC_Group::Scalar::deserialize_pair(m_group, std::span{sig, sig_len});
 
-   const BigInt e = BigInt::from_bytes_with_max_bits(msg, msg_len, m_group.get_order_bits());
-
-   const BigInt r(sig, sig_len / 2);
-   const BigInt s(sig + sig_len / 2, sig_len / 2);
-
-   // Cannot be negative here since we just decoded from binary
    if(r.is_zero() || s.is_zero()) {
       return false;
    }
 
-   if(r >= m_group.get_order() || s >= m_group.get_order()) {
-      return false;
-   }
+   const auto w = s.invert();
 
-   const BigInt w = m_group.inverse_mod_order(s);
+   const auto u1 = w * e;
+   const auto u2 = w * r;
 
-   const BigInt u1 = m_group.multiply_mod_order(m_group.mod_order(e), w);
-   const BigInt u2 = m_group.multiply_mod_order(r, w);
-   const EC_Point R = m_gy_mul.multi_exp(u1, u2);
+   const auto v = m_gy_mul.mul2_x_mod_order(u1, u2);
 
-   if(R.is_zero()) {
-      return false;
-   }
-
-   const BigInt v = m_group.mod_order(R.get_affine_x());
    return (v == r);
 }
 

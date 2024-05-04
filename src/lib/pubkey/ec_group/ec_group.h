@@ -183,14 +183,18 @@ class BOTAN_PUBLIC_API(2, 0) EC_Group final {
          public:
             static Scalar from_bytes_with_trunc(const EC_Group& group, std::span<const uint8_t> bytes);
 
+            /// Returns nullopt if wrong size or other scalar out of range
+            static std::optional<std::pair<Scalar, Scalar>> deserialize_pair(const EC_Group& group,
+                                                                             std::span<const uint8_t> bytes);
+
             static Scalar random(const EC_Group& group, RandomNumberGenerator& rng);
 
             static Scalar from_bigint(const EC_Group& group, const BigInt& bn);
 
             // Workspace argument is transitional
-            static Scalar x_coord_of_gk_mod_order(const EC_Group::Scalar& scalar,
-                                                  RandomNumberGenerator& rng,
-                                                  std::vector<BigInt>& ws);
+            static Scalar gk_x_mod_order(const EC_Group::Scalar& scalar,
+                                         RandomNumberGenerator& rng,
+                                         std::vector<BigInt>& ws);
 
             static std::vector<uint8_t> serialize_pair(const Scalar& r, const Scalar& s);
 

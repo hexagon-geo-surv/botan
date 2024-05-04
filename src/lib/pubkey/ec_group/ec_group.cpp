@@ -824,12 +824,12 @@ class EC_Scalar_Data final {
 
 EC_Group::Scalar::Scalar(std::shared_ptr<EC_Group_Data> group, std::unique_ptr<EC_Scalar_Data> scalar) :
       m_group(group), m_scalar(std::move(scalar)) {
-   BOTAN_DEBUG_ASSERT(m_scalar->value() < m_group->order());
+   BOTAN_ASSERT_NOMSG(m_scalar->value() < m_group->order());
 }
 
 EC_Group::Scalar::Scalar(const EC_Group& group, std::unique_ptr<EC_Scalar_Data> scalar) :
       m_group(group.m_data), m_scalar(std::move(scalar)) {
-   BOTAN_DEBUG_ASSERT(m_scalar->value() < m_group->order());
+   BOTAN_ASSERT_NOMSG(m_scalar->value() < m_group->order());
 }
 
 EC_Group::Scalar::~Scalar() = default;
@@ -850,9 +850,9 @@ EC_Group::Scalar EC_Group::Scalar::from_bigint(const EC_Group& group, const BigI
    return EC_Group::Scalar(group, std::move(v));
 }
 
-EC_Group::Scalar EC_Group::Scalar::x_coord_of_gk_mod_order(const EC_Group::Scalar& scalar,
-                                                           RandomNumberGenerator& rng,
-                                                           std::vector<BigInt>& ws) {
+EC_Group::Scalar EC_Group::Scalar::gk_x_mod_order(const EC_Group::Scalar& scalar,
+                                                  RandomNumberGenerator& rng,
+                                                  std::vector<BigInt>& ws) {
    const EC_Point pt = scalar.m_group->blinded_base_point_multiply(scalar.m_scalar->value(), rng, ws);
 
    if(pt.is_zero()) {
