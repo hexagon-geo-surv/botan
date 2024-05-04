@@ -36,6 +36,7 @@ enum class EC_Group_Source {
    ExternalSource,
 };
 
+class EC_Scalar_Data;
 class EC_Group_Data;
 class EC_Group_Data_Map;
 
@@ -177,6 +178,55 @@ class BOTAN_PUBLIC_API(2, 0) EC_Group final {
       * and that it has order matching the group.
       */
       bool verify_public_element(const EC_Point& y) const;
+
+      class Scalar {
+         public:
+            static Scalar from_bytes_with_trunc(const EC_Group& group, std::span<const uint8_t> bytes);
+
+            static Scalar random(const EC_Group& group, RandomNumberGenerator& rng);
+
+            static Scalar from_bigint(const EC_Group& group, const BigInt& bn);
+
+            // Workspace argument is transitional
+            static Scalar x_coord_of_gk_mod_order(const EC_Group::Scalar& scalar,
+                                                  RandomNumberGenerator& rng,
+                                                  std::vector<BigInt>& ws);
+
+            static std::vector<uint8_t> serialize_pair(const Scalar& r, const Scalar& s);
+
+            std::vector<uint8_t> serialize() const;
+
+            bool is_zero() const;
+
+            Scalar invert() const;
+
+            Scalar add(const Scalar& x) const;
+
+            Scalar mul(const Scalar& x) const;
+
+            void assign(const Scalar& x);
+
+            void square_self();
+
+            friend Scalar operator+(const Scalar& x, const Scalar& y) { return x.add(y); }
+
+            friend Scalar operator*(const Scalar& x, const Scalar& y) { return x.mul(y); }
+
+            Scalar& operator=(const Scalar& x) {
+               this->assign(x);
+               return (*this);
+            }
+
+            ~Scalar();
+
+         private:
+            Scalar(std::shared_ptr<EC_Group_Data> group, std::unique_ptr<EC_Scalar_Data> scalar);
+
+            Scalar(const EC_Group& group, std::unique_ptr<EC_Scalar_Data> scalar);
+
+            std::shared_ptr<EC_Group_Data> m_group;
+            std::unique_ptr<EC_Scalar_Data> m_scalar;
+      };
 
       /**
       * Return the OID of these domain parameters

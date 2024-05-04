@@ -810,4 +810,106 @@ bool EC_Group::verify_group(RandomNumberGenerator& rng, bool strong) const {
    return true;
 }
 
+class EC_Scalar_Data final {
+   public:
+      EC_Scalar_Data(BigInt v) : m_v(std::move(v)) {}
+
+      const BigInt& value() const { return m_v; }
+
+      void set_value(const BigInt& v) { m_v = v; }
+
+   private:
+      BigInt m_v;
+};
+
+EC_Group::Scalar::Scalar(std::shared_ptr<EC_Group_Data> group, std::unique_ptr<EC_Scalar_Data> scalar) :
+      m_group(group), m_scalar(std::move(scalar)) {
+   BOTAN_DEBUG_ASSERT(m_scalar->value() < m_group->order());
+}
+
+EC_Group::Scalar::Scalar(const EC_Group& group, std::unique_ptr<EC_Scalar_Data> scalar) :
+      m_group(group.m_data), m_scalar(std::move(scalar)) {
+   BOTAN_DEBUG_ASSERT(m_scalar->value() < m_group->order());
+}
+
+EC_Group::Scalar::~Scalar() = default;
+
+EC_Group::Scalar EC_Group::Scalar::from_bytes_with_trunc(const EC_Group& group, std::span<const uint8_t> bytes) {
+   auto bn = BigInt::from_bytes_with_max_bits(bytes.data(), bytes.size(), group.get_order_bits());
+   auto v = std::make_unique<EC_Scalar_Data>(group.data().mod_order(bn));
+   return EC_Group::Scalar(group, std::move(v));
+}
+
+EC_Group::Scalar EC_Group::Scalar::random(const EC_Group& group, RandomNumberGenerator& rng) {
+   auto v = std::make_unique<EC_Scalar_Data>(BigInt::random_integer(rng, BigInt::one(), group.get_order()));
+   return EC_Group::Scalar(group, std::move(v));
+}
+
+EC_Group::Scalar EC_Group::Scalar::from_bigint(const EC_Group& group, const BigInt& bn) {
+   auto v = std::make_unique<EC_Scalar_Data>(group.data().mod_order(bn));
+   return EC_Group::Scalar(group, std::move(v));
+}
+
+EC_Group::Scalar EC_Group::Scalar::x_coord_of_gk_mod_order(const EC_Group::Scalar& scalar,
+                                                           RandomNumberGenerator& rng,
+                                                           std::vector<BigInt>& ws) {
+   const EC_Point pt = scalar.m_group->blinded_base_point_multiply(scalar.m_scalar->value(), rng, ws);
+
+   if(pt.is_zero()) {
+      auto v = std::make_unique<EC_Scalar_Data>(BigInt::zero());
+      return EC_Group::Scalar(scalar.m_group, std::move(v));
+   } else {
+      auto v = std::make_unique<EC_Scalar_Data>(scalar.m_group->mod_order(pt.get_affine_x()));
+      return EC_Group::Scalar(scalar.m_group, std::move(v));
+   }
+}
+
+std::vector<uint8_t> EC_Group::Scalar::serialize_pair(const EC_Group::Scalar& r, const EC_Group::Scalar& s) {
+   BOTAN_ARG_CHECK(r.m_group == s.m_group, "Curve mismatch");
+
+   const size_t order_bytes = r.m_group->order_bytes();
+   std::vector<uint8_t> bytes(2 * order_bytes);
+
+   r.m_scalar->value().binary_encode(bytes.data(), order_bytes);
+   s.m_scalar->value().binary_encode(bytes.data() + order_bytes, order_bytes);
+
+   return bytes;
+}
+
+std::vector<uint8_t> EC_Group::Scalar::serialize() const {
+   const size_t order_bytes = m_group->order_bytes();
+   std::vector<uint8_t> bytes(order_bytes);
+   m_scalar->value().binary_encode(bytes.data(), order_bytes);
+   return bytes;
+}
+
+bool EC_Group::Scalar::is_zero() const {
+   return m_scalar->value().is_zero();
+}
+
+EC_Group::Scalar EC_Group::Scalar::invert() const {
+   auto v = std::make_unique<EC_Scalar_Data>(m_group->inverse_mod_order(m_scalar->value()));
+   return EC_Group::Scalar(m_group, std::move(v));
+}
+
+void EC_Group::Scalar::square_self() {
+   auto nv = m_group->square_mod_order(m_scalar->value());
+   m_scalar->set_value(nv);
+}
+
+EC_Group::Scalar EC_Group::Scalar::add(const EC_Group::Scalar& x) const {
+   auto v = std::make_unique<EC_Scalar_Data>(m_group->mod_order(m_scalar->value() + x.m_scalar->value()));
+   return EC_Group::Scalar(m_group, std::move(v));
+}
+
+EC_Group::Scalar EC_Group::Scalar::mul(const EC_Group::Scalar& x) const {
+   auto v = std::make_unique<EC_Scalar_Data>(m_group->multiply_mod_order(m_scalar->value(), x.m_scalar->value()));
+   return EC_Group::Scalar(m_group, std::move(v));
+}
+
+void EC_Group::Scalar::assign(const EC_Group::Scalar& x) {
+   BOTAN_ARG_CHECK(m_group == x.m_group, "Curve mismatch");
+   m_scalar->set_value(x.m_scalar->value());
+}
+
 }  // namespace Botan
