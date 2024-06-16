@@ -1364,6 +1364,167 @@ class WindowedMul2Table final {
       std::vector<AffinePoint> m_table;
 };
 
+template <typename C, size_t W>
+class NafEncodedScalar final {
+   public:
+      static_assert(W >= 2 && W <= 5);
+
+      NafEncodedScalar(const typename C::Scalar& scalar) {
+         BOTAN_ARG_CHECK(!scalar.is_zero().as_bool(), "No valid NAF encoding for zero");
+
+         constexpr uint8_t MASK = (1 << W) - 1;
+
+         auto k = scalar.to_words();
+
+         // variable time is ok here
+         auto is_non_zero = [](std::span<const word> v) -> bool {
+            for(auto w: v) {
+               if(w > 0) {
+                  return true;
+               }
+            }
+            return false;
+         };
+
+         while(is_non_zero(k)) {
+            int8_t ki = 0;
+            if(k[0] & 1) {
+               ki = mods(static_cast<int8_t>(k[0]) & MASK);
+
+               // k -= ki
+
+               if(ki > 0) {
+                  const word kiw = static_cast<word>(ki);
+                  bigint_sub2(k.data(), k.size(), &kiw, 1);
+               } else {
+                  const word kiw = static_cast<word>(-ki);
+                  bigint_add2_nc(k.data(), k.size(), &kiw, 1);
+               }
+            }
+
+            shift_right<1>(k);
+
+            m_naf.push_back(ki);
+         }
+
+         std::reverse(m_naf.begin(), m_naf.end());
+      }
+
+      size_t size() const { return m_naf.size(); }
+
+      int8_t get_naf(size_t idx) const {
+         return (idx < m_naf.size()) ? m_naf[idx] : 0;
+      }
+
+   private:
+      static int8_t mods(int8_t k0) {
+         if(k0 >= (1 << (W - 1))) {
+            return k0 - (1 << W);
+         } else {
+            return k0;
+         }
+      }
+
+      std::vector<int8_t> m_naf;
+};
+
+/**
+* Effect 2-ary multiplication ie x*G + y*H
+*
+* This is done using wNAF encoding of x and y.
+*/
+template <typename C, size_t W>
+class NafVartimeMul2Table final {
+   public:
+      static_assert(W >= 2 && W <= 5);
+
+      typedef typename C::Scalar Scalar;
+      typedef typename C::AffinePoint AffinePoint;
+      typedef typename C::ProjectivePoint ProjectivePoint;
+
+      static constexpr size_t SCALE = (1 << (W-1)) + 1;
+
+      // One element is omitted as the linear combination of (0,0)
+      // which we don't need since we skip dual zeros entirely.
+      static constexpr size_t TableSize = (SCALE * SCALE) - 1;
+
+      NafVartimeMul2Table(const AffinePoint& x, const AffinePoint& y) {
+
+         auto naf_mul = [](const AffinePoint& p) -> std::array<ProjectivePoint, SCALE> {
+            std::array<ProjectivePoint, SCALE> t = {};
+            t[0] = ProjectivePoint::identity();
+            t[1] = ProjectivePoint::from_affine(p);
+
+            const auto p2 = t[1].dbl();
+
+            for(size_t i = 2; i != SCALE; ++i) {
+               if(i % 2 == 0) {
+                  t[i] = t[i-1] + p2;
+               } else {
+                  t[i] = t[i-1].negate();
+               }
+            }
+
+            return t;
+         };
+
+         const std::array<ProjectivePoint, SCALE> x_mul = naf_mul(x);
+         const std::array<ProjectivePoint, SCALE> y_mul = naf_mul(y);
+
+         std::array<ProjectivePoint, TableSize> table = {};
+
+         for(size_t i = 1; i != (SCALE * SCALE); ++i) {
+            const size_t x_i = (i / SCALE);
+            const size_t y_i = (i % SCALE);
+            table[i - 1] = x_mul.at(x_i) + y_mul.at(y_i);
+         }
+
+         m_table = ProjectivePoint::to_affine_batch(table);
+      }
+
+      /**
+      * Variable time 2-ary multiplication
+      *
+      * A common use of 2-ary multiplication is when verifying the commitments
+      * of an elliptic curve signature. Since in this case the inputs are all
+      * public, there is no problem with variable time computation.
+      */
+      ProjectivePoint mul2_vartime(const Scalar& s1, const Scalar& s2) const {
+         const NafEncodedScalar<C, W> naf1(s1);
+         const NafEncodedScalar<C, W> naf2(s2);
+
+         auto accum = ProjectivePoint::identity();
+
+         const size_t naf_size = std::max(naf1.size(), naf2.size());
+
+         for(size_t i = 0; i != naf_size; ++i) {
+            if(i > 0) {
+               accum = accum.dbl();
+            }
+
+            const int8_t n_1 = naf1.get_naf(i);
+            const int8_t n_2 = naf2.get_naf(i);
+
+            if(n_1 > 0 || n_2 > 0) {
+               const size_t idx = map_to_table_idx(n_1, n_2);
+               BOTAN_DEBUG_ASSERT(idx < m_table.size());
+               accum += m_table[idx];
+            }
+         }
+
+         return accum;
+      }
+
+   private:
+      static size_t map_to_table_idx(int8_t n_1, int8_t n_2) {
+         const size_t i = (n_1 >= 0) ? static_cast<size_t>(n_1) : static_cast<size_t>(-n_1) + 1;
+         const size_t j = (n_2 >= 0) ? static_cast<size_t>(n_2) : static_cast<size_t>(-n_2) + 1;
+         return (SCALE*i + j) - 1;
+      }
+
+      std::vector<AffinePoint> m_table;
+};
+
 template <typename C>
 inline auto map_to_curve_sswu(const typename C::FieldElement& u) -> typename C::AffinePoint {
    u.ct_poison();
