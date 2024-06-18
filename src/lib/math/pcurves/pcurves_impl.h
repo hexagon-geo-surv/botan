@@ -1376,8 +1376,10 @@ class NafEncodedScalar final {
 
          auto k = scalar.to_words();
 
+         typedef decltype(k[0]) WordType;
+
          // variable time is ok here
-         auto is_non_zero = [](std::span<const word> v) -> bool {
+         auto is_non_zero = [](std::span<const WordType> v) -> bool {
             for(auto w: v) {
                if(w > 0) {
                   return true;
@@ -1389,15 +1391,15 @@ class NafEncodedScalar final {
          while(is_non_zero(k)) {
             int8_t ki = 0;
             if(k[0] & 1) {
-               ki = mods(static_cast<int8_t>(k[0]) & MASK);
+               ki = mods(static_cast<int8_t>(k[0] & MASK));
 
                // k -= ki
 
                if(ki > 0) {
-                  const word kiw = static_cast<word>(ki);
+                  const auto kiw = static_cast<WordType>(ki);
                   bigint_sub2(k.data(), k.size(), &kiw, 1);
                } else {
-                  const word kiw = static_cast<word>(-ki);
+                  const auto kiw = static_cast<WordType>(-ki);
                   bigint_add2_nc(k.data(), k.size(), &kiw, 1);
                }
             }
@@ -1442,7 +1444,10 @@ class NafEncodedScalar final {
 /**
 * Effect 2-ary multiplication ie x*G + y*H
 *
-* This is done using wNAF encoding of x and y.
+* This is done using wNAF encoding of x and y. This is simpler than joint sparse
+* form and almost as efficient. Also the wNAF encoding can be reused for a
+* single point*scalar multiplication later on, should a variable time
+* multiplication prove useful.
 */
 template <typename C, size_t W>
 class NafVartimeMul2Table final {
@@ -1567,6 +1572,7 @@ class NafVartimeMul2Table final {
                const size_t idx = map_to_table_idx(n_1, n_2);
                BOTAN_DEBUG_ASSERT(idx < m_table.size());
                accum += m_table[idx];
+               // We could dbl_n(W-1) here then skip W-1 iterations of the loop
             }
          }
 

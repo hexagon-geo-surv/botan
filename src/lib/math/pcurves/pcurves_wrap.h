@@ -17,7 +17,7 @@ class PrimeOrderCurveImpl final : public PrimeOrderCurve {
    public:
       class PrecomputedMul2TableC final : public PrimeOrderCurve::PrecomputedMul2Table {
          public:
-            static constexpr size_t WindowBits = 4;
+            static constexpr size_t WindowBits = 5;
 
             const auto& table() const { return m_table; }
 
