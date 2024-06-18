@@ -1412,8 +1412,19 @@ class NafEncodedScalar final {
 
       size_t size() const { return m_naf.size(); }
 
-      int8_t get_naf(size_t idx) const {
-         return (idx < m_naf.size()) ? m_naf[idx] : 0;
+      int8_t get_naf(size_t max, size_t idx) const {
+         /*
+         NAF is variable length, depending on the scalar value. For 2-ary mul we
+         have to zero-prefix the shorter NAF encoding
+         */
+         if(m_naf.size() == max) {
+            return m_naf[idx];
+         } else {
+            BOTAN_DEBUG_ASSERT(max > m_naf.size());
+            const size_t prefix = max - m_naf.size();
+            return (idx >= prefix) ? m_naf[idx - prefix] : 0;
+         }
+
       }
 
    private:
@@ -1448,35 +1459,82 @@ class NafVartimeMul2Table final {
       // which we don't need since we skip dual zeros entirely.
       static constexpr size_t TableSize = (SCALE * SCALE) - 1;
 
-      NafVartimeMul2Table(const AffinePoint& x, const AffinePoint& y) {
+      NafVartimeMul2Table(const AffinePoint& g, const AffinePoint& h) {
+         std::vector<ProjectivePoint> table;
 
-         auto naf_mul = [](const AffinePoint& p) -> std::array<ProjectivePoint, SCALE> {
-            std::array<ProjectivePoint, SCALE> t = {};
-            t[0] = ProjectivePoint::identity();
-            t[1] = ProjectivePoint::from_affine(p);
+         const auto gp = ProjectivePoint::from_affine(g);
+         const auto hp = ProjectivePoint::from_affine(h);
 
-            const auto p2 = t[1].dbl();
+         const auto g2 = gp.dbl();
+         const auto h2 = hp.dbl();
 
-            for(size_t i = 2; i != SCALE; ++i) {
-               if(i % 2 == 0) {
-                  t[i] = t[i-1] + p2;
-               } else {
-                  t[i] = t[i-1].negate();
-               }
+         auto map_i8 = [](size_t i) -> int8_t {
+            if(i == 0) {
+               return 0;
+            } else if(i % 2 == 1) {
+               return static_cast<int8_t>(i);
+            } else {
+               return -static_cast<int8_t>(i - 1);
             }
-
-            return t;
          };
 
-         const std::array<ProjectivePoint, SCALE> x_mul = naf_mul(x);
-         const std::array<ProjectivePoint, SCALE> y_mul = naf_mul(y);
-
-         std::array<ProjectivePoint, TableSize> table = {};
-
          for(size_t i = 1; i != (SCALE * SCALE); ++i) {
-            const size_t x_i = (i / SCALE);
-            const size_t y_i = (i % SCALE);
-            table[i - 1] = x_mul.at(x_i) + y_mul.at(y_i);
+            size_t x_i = i / SCALE;
+            size_t y_i = i % SCALE;
+            int8_t i8 = map_i8(x_i);
+            int8_t j8 = map_i8(y_i);
+
+            const size_t idx = map_to_table_idx(i8, j8);
+            BOTAN_ASSERT_NOMSG(idx == i - 1);
+
+            // If we want (x,y) where (-x,-y) already exists, use it
+            if(const size_t nidx = map_to_table_idx(-i8, -j8); nidx < idx) {
+               table.push_back(table[nidx].negate());
+               continue;
+            }
+
+            // If we want (x,y) where (x-2,y) already exists, use it
+            if(const size_t pidx = map_to_table_idx(i8 - 2, j8); pidx < idx) {
+               table.push_back(table[pidx] + g2);
+               continue;
+            }
+
+            // If we want (x,y) where (x+2,y) already exists, use it
+            if(const size_t pidx = map_to_table_idx(i8 + 2, j8); pidx < idx) {
+               table.push_back(table[pidx] + g2.negate());
+               continue;
+            }
+
+            // If we want (x,y) where (x,y-2) already exists, use it
+            if(const size_t pidx = map_to_table_idx(i8, j8 - 2); pidx < idx) {
+               table.push_back(table[pidx] + h2);
+               continue;
+            }
+
+            // If we want (x,y) where (x,y+2) already exists, use it
+            if(const size_t pidx = map_to_table_idx(i8, j8 + 2); pidx < idx) {
+               table.push_back(table[pidx] + h2.negate());
+               continue;
+            }
+
+            /*
+            * At this point we should have already computed everything based on
+            * an already existing table entry, with the exception of simple
+            * linear combinations of g/h - g, h, or g+h
+            */
+            BOTAN_ASSERT_NOMSG(i8 == 0 || i8 == 1);
+            BOTAN_ASSERT_NOMSG(j8 == 0 || j8 == 1);
+            BOTAN_ASSERT_NOMSG(i8 != 0 || j8 != 0);
+
+            if(i8 == 1 && j8 == 0) {
+               table.push_back(gp);
+            } else if(i8 == 0 && j8 == 1) {
+               table.push_back(hp);
+            } else if(i8 == 1 && j8 == 1) {
+               table.push_back(gp + hp);
+            } else {
+               BOTAN_ASSERT_UNREACHABLE();
+            }
          }
 
          m_table = ProjectivePoint::to_affine_batch(table);
@@ -1502,8 +1560,8 @@ class NafVartimeMul2Table final {
                accum = accum.dbl();
             }
 
-            const int8_t n_1 = naf1.get_naf(i);
-            const int8_t n_2 = naf2.get_naf(i);
+            const int8_t n_1 = naf1.get_naf(naf_size, i);
+            const int8_t n_2 = naf2.get_naf(naf_size, i);
 
             if(n_1 > 0 || n_2 > 0) {
                const size_t idx = map_to_table_idx(n_1, n_2);
