@@ -47,7 +47,11 @@ EC_Scalar EC_Scalar::from_bytes_with_trunc(const EC_Group& group, std::span<cons
 }
 
 EC_Scalar EC_Scalar::from_bytes_mod_order(const EC_Group& group, std::span<const uint8_t> bytes) {
-   return EC_Scalar(group._data()->scalar_from_bytes_mod_order(bytes));
+   if(auto s = group._data()->scalar_from_bytes_mod_order(bytes)) {
+      return EC_Scalar(std::move(s));
+   } else {
+      throw Decoding_Error("EC_Scalar::from_bytes_mod_order input invalid");
+   }
 }
 
 EC_Scalar EC_Scalar::random(const EC_Group& group, RandomNumberGenerator& rng) {

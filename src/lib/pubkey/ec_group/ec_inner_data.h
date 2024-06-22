@@ -187,12 +187,34 @@ class EC_Group_Data final : public std::enable_shared_from_this<EC_Group_Data> {
 
       EC_Group_Source source() const { return m_source; }
 
+      /// Scalar from bytes
+      ///
+      /// This returns a value only if the bytes represent (in big-endian encoding) an integer
+      /// that is at most n, where n is the group order. It requires that the fixed length
+      /// encoding (with zero prefix) be used. It also rejects an all-zero input.
+      /// If the input is rejected then nullptr is returned
+      std::unique_ptr<EC_Scalar_Data> scalar_deserialize(std::span<const uint8_t> bytes) const;
+
+      /// Scalar from bytes with ECDSA style trunction
+      ///
+      /// This should always succeed
       std::unique_ptr<EC_Scalar_Data> scalar_from_bytes_with_trunc(std::span<const uint8_t> bytes) const;
 
+      /// Scalar from bytes with modular reduction
+      ///
+      /// This returns a value only if bytes represents (in big-endian encoding) an integer
+      /// that is at most the square of the scalar group size. Otherwise it returns nullptr.
       std::unique_ptr<EC_Scalar_Data> scalar_from_bytes_mod_order(std::span<const uint8_t> bytes) const;
 
+      /// Scalar from BigInt
+      ///
+      /// This returns a value only if bn is in [0,n) where n is the group order.
+      /// Otherwise it returns nullptr
       std::unique_ptr<EC_Scalar_Data> scalar_from_bigint(const BigInt& bn) const;
 
+      /// Return a random scalar
+      ///
+      /// This will be in the range [1,n) where n is the group order
       std::unique_ptr<EC_Scalar_Data> scalar_random(RandomNumberGenerator& rng) const;
 
       std::unique_ptr<EC_Scalar_Data> scalar_zero() const;
@@ -203,8 +225,9 @@ class EC_Group_Data final : public std::enable_shared_from_this<EC_Group_Data> {
                                                      RandomNumberGenerator& rng,
                                                      std::vector<BigInt>& ws) const;
 
-      std::unique_ptr<EC_Scalar_Data> scalar_deserialize(std::span<const uint8_t> bytes);
-
+      /// Deserialize a point
+      ///
+      /// Returns nullptr if the point encoding was invalid or not on the curve
       std::unique_ptr<EC_AffinePoint_Data> point_deserialize(std::span<const uint8_t> bytes) const;
 
       std::unique_ptr<EC_AffinePoint_Data> point_hash_to_curve_ro(std::string_view hash_fn,
@@ -221,8 +244,13 @@ class EC_Group_Data final : public std::enable_shared_from_this<EC_Group_Data> {
 
       std::unique_ptr<EC_Mul2Table_Data> make_mul2_table(const EC_AffinePoint_Data& pt) const;
 
+      const PCurve::PrimeOrderCurve& pcurve() const {
+         BOTAN_ASSERT_NONNULL(m_pcurve);
+         return *m_pcurve;
+      }
+
    private:
-      // Will be nullptr if not an implemented curve
+      // Possibly nullptr (if pcurves not available or not a standard curve)
       std::shared_ptr<const PCurve::PrimeOrderCurve> m_pcurve;
 
       CurveGFp m_curve;
