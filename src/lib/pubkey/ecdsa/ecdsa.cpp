@@ -161,7 +161,7 @@ secure_vector<uint8_t> ECDSA_Signature_Operation::raw_sign(const uint8_t msg[],
    const auto m = EC_Scalar::from_bytes_with_trunc(m_group, std::span{msg, msg_len});
 
 #if defined(BOTAN_HAS_RFC6979_GENERATOR)
-   const auto k = EC_Scalar::from_bigint(m_group, m_rfc6979->nonce_for(m.serialize()));
+   const auto k = m_rfc6979->nonce_for(m_group, m);
 #else
    const auto k = EC_Scalar::random(m_group, rng);
 #endif

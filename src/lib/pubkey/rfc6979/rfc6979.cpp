@@ -26,31 +26,54 @@ RFC6979_Nonce_Generator::RFC6979_Nonce_Generator(std::string_view hash, const Bi
 
 RFC6979_Nonce_Generator::~RFC6979_Nonce_Generator() = default;
 
-const BigInt& RFC6979_Nonce_Generator::nonce_for(const BigInt& m) {
-   std::vector<uint8_t> m_bytes(m_rlen);
-   m.serialize_to(m_bytes);
-   return this->nonce_for(m_bytes);
-}
-
-const BigInt& RFC6979_Nonce_Generator::nonce_for(std::span<const uint8_t> m_bytes) {
-   BOTAN_ARG_CHECK(m_bytes.size() == m_rlen, "Invalid m encoding");
-   copy_mem(&m_rng_in[m_rlen], m_bytes.data(), m_rlen);
+BigInt RFC6979_Nonce_Generator::nonce_for(const BigInt& m) {
+   m.serialize_to(std::span{m_rng_in}.last(m_rlen));
 
    m_hmac_drbg->initialize_with(m_rng_in.data(), m_rng_in.size());
 
+   const size_t shift = 8 * m_rlen - m_qlen;
+   BOTAN_ASSERT_NOMSG(shift < 8);
+
+   BigInt k;
+
    do {
       m_hmac_drbg->randomize(m_rng_out.data(), m_rng_out.size());
-      m_k._assign_from_bytes(m_rng_out);
-      m_k >>= (8 * m_rlen - m_qlen);
-   } while(m_k == 0 || m_k >= m_order);
+      k._assign_from_bytes(m_rng_out);
 
-   return m_k;
-}
+      if(shift > 0) {
+         k >>= shift;
+      }
+   } while(k == 0 || k >= m_order);
 
-BigInt generate_rfc6979_nonce(const BigInt& x, const BigInt& q, const BigInt& h, std::string_view hash) {
-   RFC6979_Nonce_Generator gen(hash, q, x);
-   BigInt k = gen.nonce_for(h);
    return k;
 }
+
+#if defined(BOTAN_HAS_ECC_GROUP)
+EC_Scalar RFC6979_Nonce_Generator::nonce_for(const EC_Group& group, const EC_Scalar& m) {
+   m.serialize_to(std::span{m_rng_in}.last(m_rlen));
+
+   m_hmac_drbg->initialize_with(m_rng_in.data(), m_rng_in.size());
+
+   const size_t shift = 8 * m_rlen - m_qlen;
+   BOTAN_ASSERT_NOMSG(shift < 8);
+
+   for(;;) {
+      m_hmac_drbg->randomize(m_rng_out.data(), m_rng_out.size());
+
+      if(shift > 0) {
+         uint8_t carry = 0;
+         for(size_t i = 0; i != m_rng_out.size(); ++i) {
+            const uint8_t w = m_rng_out[i];
+            m_rng_out[i] = (w >> shift) | carry;
+            carry = w << (8 - shift);
+         }
+      }
+
+      if(auto k = EC_Scalar::deserialize(group, m_rng_out)) {
+         return *k;
+      }
+   }
+}
+#endif
 
 }  // namespace Botan
