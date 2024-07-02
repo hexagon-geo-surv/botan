@@ -17,7 +17,7 @@
 #include <botan/secmem.h>
 #include <botan/internal/bit_ops.h>
 #include <type_traits>
-#include <vector>
+#include <optional>
 
 #if defined(BOTAN_HAS_VALGRIND)
    #include <valgrind/memcheck.h>
@@ -171,6 +171,63 @@ class Choice final {
       constexpr explicit Choice(uint32_t v) : m_value(v) {}
 
       uint32_t m_value;
+};
+
+/**
+* A CT::Option<T> is either a valid T (Some), or a default T (None)
+*
+* T must be default construtible
+*/
+template <typename T>
+class Option {
+   public:
+      constexpr Option(T v, Choice valid) : m_is_some(valid), m_value(v) {}
+
+      constexpr Option(T v) : m_is_some(Choice::yes()), m_value(v) {}
+
+      constexpr Option() : m_is_some(Choice::no()), m_value(T()) {}
+
+      /// Return if this Option is Some
+      constexpr Choice is_some() const { return m_is_some; }
+
+      /// Return if this Option is None
+      constexpr Choice is_none() const { return !m_is_some; }
+
+      /**
+      * Apply a function to the inner value and return a new Option
+      * which contains that value. This is constant time only if `f` is.
+      */
+      template <typename F>
+      constexpr auto map(F f) const {
+         typedef typename std::invoke_result<F, T>::type U;
+         return Option<U>(f(m_value), m_is_some);
+      }
+
+      /// Either returns the value or throws an exception
+      T unwrap() const {
+         BOTAN_STATE_CHECK(m_is_some.as_bool());
+         return m_value;
+      }
+
+      /// Returns either the inner value or the alternative, in constant time
+      T unwrap_or(const T& other) const {
+         T r = other;
+         r.conditional_assign(m_is_some, m_value);
+         return r;
+      }
+
+      /// Variable time
+      std::optional<T> as_optional() const {
+         if(m_is_some.as_bool()) {
+            return {m_value};
+         } else {
+            return {};
+         }
+      }
+
+   private:
+      Choice m_is_some;
+      T m_value;
 };
 
 /**
