@@ -31,6 +31,9 @@ class BOTAN_UNSTABLE_API EC_AffinePoint final {
       /// Point deserialization. Returns nullopt if wrong length or not a valid point
       static std::optional<EC_AffinePoint> deserialize(const EC_Group& group, std::span<const uint8_t> bytes);
 
+      /// Point deserialization. Throws if wrong length or not a valid point
+      static EC_AffinePoint deserialize_or_throw(const EC_Group& group, std::span<const uint8_t> bytes);
+
       /// Multiply by the group generator returning a complete point
       ///
       /// Workspace argument is transitional

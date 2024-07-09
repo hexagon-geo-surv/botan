@@ -72,6 +72,14 @@ std::optional<EC_AffinePoint> EC_AffinePoint::deserialize(const EC_Group& group,
    }
 }
 
+EC_AffinePoint EC_AffinePoint::deserialize_or_throw(const EC_Group& group, std::span<const uint8_t> bytes) {
+   if(auto pt = EC_AffinePoint::deserialize(group, bytes)) {
+      return *pt;
+   } else {
+      throw Decoding_Error("Invalid elliptic curve point");
+   }
+}
+
 EC_AffinePoint EC_AffinePoint::g_mul(const EC_Scalar& scalar, RandomNumberGenerator& rng, std::vector<BigInt>& ws) {
    auto pt = scalar._inner().group()->point_g_mul(scalar.inner(), rng, ws);
    return EC_AffinePoint(std::move(pt));
