@@ -99,6 +99,7 @@ class BOTAN_PUBLIC_API(2, 0) EC_PublicKey : public virtual Public_Key {
       const BigInt& get_int_field(std::string_view field) const override;
 
       const EC_AffinePoint& _public_key() const;
+
    protected:
       /**
       * Create a public key.
@@ -150,6 +151,7 @@ class BOTAN_PUBLIC_API(2, 0) EC_PrivateKey : public virtual EC_PublicKey,
       const BigInt& get_int_field(std::string_view field) const final;
 
       const EC_Scalar& _private_key() const;
+
    protected:
       /*
       * If x=0, creates a new private key in the domain
