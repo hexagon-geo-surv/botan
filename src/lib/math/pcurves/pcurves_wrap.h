@@ -12,6 +12,12 @@
 
 namespace Botan::PCurve {
 
+template <typename C, typename = int>
+struct CurveHasFeInvert2 : std::false_type {};
+
+template <typename C>
+struct CurveHasFeInvert2<C, decltype(&C::fe_invert2, 0)> : std::true_type {};
+
 template <typename C>
 class PrimeOrderCurveImpl final : public PrimeOrderCurve {
    public:
@@ -27,6 +33,28 @@ class PrimeOrderCurveImpl final : public PrimeOrderCurve {
          private:
             WindowedMul2Table<C, WindowBits> m_table;
       };
+
+      static typename C::AffinePoint curve_point_to_affine(const typename C::ProjectivePoint& pt) {
+         if constexpr(CurveHasFeInvert2<C>::value) {
+            if(pt.is_identity().as_bool()) {
+               return C::AffinePoint::identity();
+            }
+
+            const auto z2_inv = C::fe_invert2(pt.z());
+            const auto z3_inv = z2_inv.square() * pt.z();
+            return typename C::AffinePoint(pt.x() * z2_inv, pt.y() * z3_inv);
+         } else {
+            return pt.to_affine();
+         }
+      }
+
+      static typename C::FieldElement curve_point_to_affine_x(const typename C::ProjectivePoint& pt) {
+         if constexpr(CurveHasFeInvert2<C>::value) {
+            return pt.x() * C::fe_invert2(pt.z());
+         } else {
+            return pt.to_affine().x();
+         }
+      }
 
       static_assert(C::OrderBits <= PrimeOrderCurve::MaximumBitLength);
       static_assert(C::PrimeFieldBits <= PrimeOrderCurve::MaximumBitLength);
@@ -78,7 +106,7 @@ class PrimeOrderCurveImpl final : public PrimeOrderCurve {
                return {};
             }
             std::array<uint8_t, C::FieldElement::BYTES> x_bytes;
-            pt.to_affine().x().serialize_to(std::span{x_bytes});
+            curve_point_to_affine_x(pt).serialize_to(std::span{x_bytes});
             return stash(C::Scalar::from_wide_bytes(std::span<const uint8_t, C::FieldElement::BYTES>{x_bytes}));
          } catch(std::bad_cast&) {
             throw Invalid_Argument("Curve mismatch");
@@ -88,14 +116,14 @@ class PrimeOrderCurveImpl final : public PrimeOrderCurve {
       Scalar base_point_mul_x_mod_order(const Scalar& scalar, RandomNumberGenerator& rng) const override {
          auto pt = m_mul_by_g.mul(from_stash(scalar), rng);
          std::array<uint8_t, C::FieldElement::BYTES> x_bytes;
-         pt.to_affine().x().serialize_to(std::span{x_bytes});
+         curve_point_to_affine_x(pt).serialize_to(std::span{x_bytes});
          return stash(C::Scalar::from_wide_bytes(std::span<const uint8_t, C::FieldElement::BYTES>{x_bytes}));
       }
 
       AffinePoint generator() const override { return stash(C::G); }
 
       AffinePoint point_to_affine(const ProjectivePoint& pt) const override {
-         return stash(from_stash(pt).to_affine());
+         return stash(curve_point_to_affine(from_stash(pt)));
       }
 
       ProjectivePoint point_to_projective(const AffinePoint& pt) const override {
