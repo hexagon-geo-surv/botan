@@ -8,6 +8,7 @@
 #define BOTAN_EC_INNER_DATA_BN_H_
 
 #include <botan/internal/ec_inner_data.h>
+#include <botan/internal/point_mul.h>
 
 namespace Botan {
 

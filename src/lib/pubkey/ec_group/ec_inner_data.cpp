@@ -10,6 +10,7 @@
 #include <botan/internal/ec_inner_bn.h>
 #include <botan/internal/ec_inner_pc.h>
 #include <botan/internal/pcurves.h>
+#include <botan/internal/point_mul.h>
 
 namespace Botan {
 
@@ -29,7 +30,6 @@ EC_Group_Data::EC_Group_Data(const BigInt& p,
       m_order(order),
       m_cofactor(cofactor),
       m_mod_order(order),
-      m_base_mult(m_base_point, m_mod_order),
       m_oid(oid),
       m_p_bits(p.bits()),
       m_order_bits(order.bits()),
@@ -48,6 +48,11 @@ EC_Group_Data::EC_Group_Data(const BigInt& p,
          // still possibly null, if the curve is supported in general but not
          // available in the build
       }
+   }
+
+   if(!m_pcurve) {
+      m_base_mult = std::make_unique<EC_Point_Base_Point_Precompute>(m_base_point, m_mod_order);
+
    }
 }
 
@@ -146,7 +151,8 @@ std::unique_ptr<EC_Scalar_Data> EC_Group_Data::gk_x_mod_order(const EC_Scalar_Da
       return std::make_unique<EC_Scalar_Data_PC>(shared_from_this(), gk_x_mod_order);
    } else {
       const auto& k = EC_Scalar_Data_BN::checked_ref(scalar);
-      const auto pt = m_base_mult.mul(k.value(), rng, m_order, ws);
+      BOTAN_STATE_CHECK(m_base_mult != nullptr);
+      const auto pt = m_base_mult->mul(k.value(), rng, m_order, ws);
 
       if(pt.is_zero()) {
          return scalar_zero();
@@ -228,7 +234,9 @@ std::unique_ptr<EC_AffinePoint_Data> EC_Group_Data::point_g_mul(const EC_Scalar_
    } else {
       const auto& group = scalar.group();
       const auto& bn = EC_Scalar_Data_BN::checked_ref(scalar);
-      auto pt = group->blinded_base_point_multiply(bn.value(), rng, ws);
+
+      BOTAN_STATE_CHECK(group->m_base_mult != nullptr);
+      auto pt = group->m_base_mult->mul(bn.value(), rng, m_order, ws);
       return std::make_unique<EC_AffinePoint_Data_BN>(shared_from_this(), std::move(pt));
    }
 }

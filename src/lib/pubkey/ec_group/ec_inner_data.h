@@ -12,12 +12,13 @@
 #include <botan/asn1_obj.h>
 #include <botan/bigint.h>
 #include <botan/reducer.h>
-#include <botan/internal/point_mul.h>
 #include <botan/internal/stl_util.h>
 #include <memory>
 #include <span>
 
 namespace Botan {
+
+class EC_Point_Base_Point_Precompute;
 
 namespace PCurve {
 
@@ -181,10 +182,6 @@ class EC_Group_Data final : public std::enable_shared_from_this<EC_Group_Data> {
 
       BigInt inverse_mod_order(const BigInt& x) const { return inverse_mod(x, m_order); }
 
-      EC_Point blinded_base_point_multiply(const BigInt& k, RandomNumberGenerator& rng, std::vector<BigInt>& ws) const {
-         return m_base_mult.mul(k, rng, m_order, ws);
-      }
-
       EC_Group_Source source() const { return m_source; }
 
       /// Scalar from bytes
@@ -253,6 +250,9 @@ class EC_Group_Data final : public std::enable_shared_from_this<EC_Group_Data> {
       // Possibly nullptr (if pcurves not available or not a standard curve)
       std::shared_ptr<const PCurve::PrimeOrderCurve> m_pcurve;
 
+      // Set only if m_pcurve is nullptr
+      std::unique_ptr<EC_Point_Base_Point_Precompute> m_base_mult;
+
       CurveGFp m_curve;
       EC_Point m_base_point;
 
@@ -261,7 +261,6 @@ class EC_Group_Data final : public std::enable_shared_from_this<EC_Group_Data> {
       BigInt m_order;
       BigInt m_cofactor;
       Modular_Reducer m_mod_order;
-      EC_Point_Base_Point_Precompute m_base_mult;
       OID m_oid;
       std::vector<uint8_t> m_der_named_curve;
       size_t m_p_bits;
