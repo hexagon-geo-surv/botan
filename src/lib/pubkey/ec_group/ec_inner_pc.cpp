@@ -161,7 +161,7 @@ void EC_AffinePoint_Data_PC::serialize_compressed_to(std::span<uint8_t> bytes) c
 EC_Point EC_AffinePoint_Data_PC::to_legacy_point() const {
    auto x = BigInt::from_bytes(m_x_bytes);
    auto y = BigInt::from_bytes(m_y_bytes);
-   return EC_Point(m_group->curve(), x, y);
+   return EC_Point(m_group->curve(), std::move(x), std::move(y));
 }
 
 void EC_AffinePoint_Data_PC::serialize_uncompressed_to(std::span<uint8_t> bytes) const {
