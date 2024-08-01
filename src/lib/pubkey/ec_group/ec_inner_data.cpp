@@ -131,7 +131,7 @@ std::unique_ptr<EC_Scalar_Data> EC_Group_Data::scalar_one() const {
 }
 
 std::unique_ptr<EC_Scalar_Data> EC_Group_Data::scalar_from_bigint(const BigInt& bn) const {
-   if(bn < 0 || bn >= m_order) {
+   if(bn <= 0 || bn >= m_order) {
       return {};
    }
 
