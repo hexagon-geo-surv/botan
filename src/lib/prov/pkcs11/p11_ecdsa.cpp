@@ -10,11 +10,12 @@
 
 #if defined(BOTAN_HAS_ECDSA)
 
+   #include <botan/assert.h>
    #include <botan/p11_mechanism.h>
    #include <botan/pk_ops.h>
+   #include <botan/pk_options.h>
    #include <botan/rng.h>
    #include <botan/internal/keypair.h>
-   #include <botan/internal/scan_name.h>
 
 namespace Botan::PKCS11 {
 
@@ -48,25 +49,14 @@ std::unique_ptr<Public_Key> PKCS11_ECDSA_PrivateKey::public_key() const {
 
 namespace {
 
-// PKCS#11 ECDSA accepts EMSA1(X) as an alias for X; unwrap so callers like
-// algorithm_identifier() see the normalized hash name (e.g. "SHA-256" instead
-// of "EMSA1(SHA-256)") and produce a registered OID such as ECDSA/SHA-256.
-std::string canonical_ecdsa_hash(std::string_view hash) {
-   const SCAN_Name req((std::string(hash)));
-   if(req.algo_name() == "EMSA1" && req.arg_count() == 1) {
-      return req.arg(0);
-   }
-   return std::string(hash);
-}
-
 class PKCS11_ECDSA_Signature_Operation final : public PK_Ops::Signature {
    public:
-      PKCS11_ECDSA_Signature_Operation(const PKCS11_ECDSA_PrivateKey& key, std::string_view hash) :
+      PKCS11_ECDSA_Signature_Operation(const PKCS11_ECDSA_PrivateKey& key, const PK_Signature_Options& options) :
             PK_Ops::Signature(),
             m_key(key),
             m_order_bytes(key.domain().get_order_bytes()),
-            m_mechanism(MechanismWrapper::create_ecdsa_mechanism(hash)),
-            m_hash(canonical_ecdsa_hash(hash)) {}
+            m_mechanism(MechanismWrapper::create_ecdsa_mechanism(options.hash_function_name())),
+            m_hash(options.hash_function_name()) {}
 
       void update(std::span<const uint8_t> input) override {
          if(!m_initialized) {
@@ -133,11 +123,11 @@ AlgorithmIdentifier PKCS11_ECDSA_Signature_Operation::algorithm_identifier() con
 
 class PKCS11_ECDSA_Verification_Operation final : public PK_Ops::Verification {
    public:
-      PKCS11_ECDSA_Verification_Operation(const PKCS11_ECDSA_PublicKey& key, std::string_view hash) :
+      PKCS11_ECDSA_Verification_Operation(const PKCS11_ECDSA_PublicKey& key, const PK_Signature_Options& options) :
             PK_Ops::Verification(),
             m_key(key),
-            m_mechanism(MechanismWrapper::create_ecdsa_mechanism(hash)),
-            m_hash(canonical_ecdsa_hash(hash)) {}
+            m_mechanism(MechanismWrapper::create_ecdsa_mechanism(options.hash_function_name())),
+            m_hash(options.hash_function_name()) {}
 
       void update(std::span<const uint8_t> input) override {
          if(!m_initialized) {
@@ -205,15 +195,21 @@ class PKCS11_ECDSA_Verification_Operation final : public PK_Ops::Verification {
 
 }  // namespace
 
-std::unique_ptr<PK_Ops::Verification> PKCS11_ECDSA_PublicKey::create_verification_op(
-   std::string_view params, std::string_view /*provider*/) const {
-   return std::make_unique<PKCS11_ECDSA_Verification_Operation>(*this, params);
+std::unique_ptr<PK_Ops::Verification> PKCS11_ECDSA_PublicKey::_create_verification_op(
+   const PK_Signature_Options& options) const {
+   if(options.using_provider() && options.provider().value() != "pkcs11") {
+      throw Provider_Not_Found(algo_name(), options.provider().value());
+   }
+   return std::make_unique<PKCS11_ECDSA_Verification_Operation>(*this, options);
 }
 
-std::unique_ptr<PK_Ops::Signature> PKCS11_ECDSA_PrivateKey::create_signature_op(RandomNumberGenerator& /*rng*/,
-                                                                                std::string_view params,
-                                                                                std::string_view /*provider*/) const {
-   return std::make_unique<PKCS11_ECDSA_Signature_Operation>(*this, params);
+std::unique_ptr<PK_Ops::Signature> PKCS11_ECDSA_PrivateKey::_create_signature_op(
+   RandomNumberGenerator& rng, const PK_Signature_Options& options) const {
+   BOTAN_UNUSED(rng);
+   if(options.using_provider() && options.provider().value() != "pkcs11") {
+      throw Provider_Not_Found(algo_name(), options.provider().value());
+   }
+   return std::make_unique<PKCS11_ECDSA_Signature_Operation>(*this, options);
 }
 
 PKCS11_ECDSA_KeyPair generate_ecdsa_keypair(Session& session,

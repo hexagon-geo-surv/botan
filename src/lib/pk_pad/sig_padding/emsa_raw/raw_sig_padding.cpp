@@ -6,12 +6,28 @@
 
 #include <botan/internal/raw_sig_padding.h>
 
+#include <botan/assert.h>
 #include <botan/exceptn.h>
+#include <botan/hash.h>
 #include <botan/mem_ops.h>
+#include <botan/pk_options.h>
 #include <botan/internal/ct_utils.h>
 #include <botan/internal/fmt.h>
+#include <botan/internal/pk_options_impl.h>
 
 namespace Botan {
+
+SignRawBytes::SignRawBytes(const PK_Signature_Options& options) :
+      m_expected_size([&]() -> size_t {
+         acknowledge_always_deterministic(options);
+
+         if(options.using_prehash()) {
+            const auto& prehash = options.prehash_function();
+            BOTAN_ARG_CHECK(prehash.has_value(), "Raw signing requires naming the prehash function");
+            return HashFunction::create_or_throw(*prehash)->output_length();
+         }
+         return 0;
+      }()) {}
 
 std::string SignRawBytes::name() const {
    if(m_expected_size > 0) {

@@ -11,6 +11,7 @@
 #include <botan/rng.h>
 #include <botan/internal/hss.h>
 #include <botan/internal/pk_ops_impl.h>
+#include <botan/internal/pk_options_impl.h>
 
 namespace Botan {
 
@@ -100,12 +101,12 @@ class HSS_LMS_Verification_Operation final : public PK_Ops::Verification {
 
 }  // namespace
 
-std::unique_ptr<PK_Ops::Verification> HSS_LMS_PublicKey::create_verification_op(std::string_view /*params*/,
-                                                                                std::string_view provider) const {
-   if(provider.empty() || provider == "base") {
+std::unique_ptr<PK_Ops::Verification> HSS_LMS_PublicKey::_create_verification_op(
+   const PK_Signature_Options& options) const {
+   if(!options.using_provider()) {
       return std::make_unique<HSS_LMS_Verification_Operation>(m_public);
    }
-   throw Provider_Not_Found(algo_name(), provider);
+   throw Provider_Not_Found(algo_name(), options.provider().value());
 }
 
 std::unique_ptr<PK_Ops::Verification> HSS_LMS_PublicKey::create_x509_verification_op(
@@ -223,16 +224,16 @@ class HSS_LMS_Signature_Operation final : public PK_Ops::Signature {
 
 }  // namespace
 
-std::unique_ptr<PK_Ops::Signature> HSS_LMS_PrivateKey::create_signature_op(RandomNumberGenerator& rng,
-                                                                           std::string_view params,
-                                                                           std::string_view provider) const {
+std::unique_ptr<PK_Ops::Signature> HSS_LMS_PrivateKey::_create_signature_op(RandomNumberGenerator& rng,
+                                                                            const PK_Signature_Options& options) const {
    BOTAN_UNUSED(rng);
-   BOTAN_ARG_CHECK(params.empty(), "Unexpected parameters for signing with HSS-LMS");
 
-   if(provider.empty() || provider == "base") {
+   acknowledge_always_deterministic(options);
+
+   if(!options.using_provider()) {
       return std::make_unique<HSS_LMS_Signature_Operation>(m_private, m_public);
    }
-   throw Provider_Not_Found(algo_name(), provider);
+   throw Provider_Not_Found(algo_name(), options.provider().value());
 }
 
 }  // namespace Botan
