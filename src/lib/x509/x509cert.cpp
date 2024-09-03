@@ -695,9 +695,10 @@ std::string X509_Certificate::to_string() const {
       auto pubkey = this->subject_public_key();
       out << "Public Key [" << pubkey->algo_name() << "-" << pubkey->key_length() << "]\n\n";
       out << X509::PEM_encode(*pubkey) << "\n";
-   } catch(Decoding_Error&) {
+   } catch(const Decoding_Error& ex) {
       const AlgorithmIdentifier& alg_id = this->subject_public_key_algo();
       out << "Public Key Invalid! OID=" << alg_id.oid().to_formatted_string()
+          << " Error=" << ex.what() << "\n";
           << " Hex=" << hex_encode(this->subject_public_key_bitstring()) << "\n";
    }
 
