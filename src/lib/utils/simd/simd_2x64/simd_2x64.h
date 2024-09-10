@@ -14,7 +14,7 @@
 
 #if defined(BOTAN_TARGET_SUPPORTS_NEON)
    #include <arm_neon.h>
-   #define BOTAN_SIMD_2X64_ISA_FUNC /**/
+   #define BOTAN_SIMD_2X64_ISA_FUNC /* NEON */
 #endif
 
 #include <botan/internal/cpuid.h>
@@ -46,21 +46,21 @@ class SIMD_2x64 final {
 #endif
       }
 
-      static SIMD_2x64 load_le(const void* in) {
+      static SIMD_2x64 load_le(std::span<const uint8_t, 16> in) {
 #if defined(BOTAN_TARGET_SUPPORTS_SSSE3)
-         return SIMD_2x64(_mm_loadu_si128(reinterpret_cast<const __m128i*>(in)));
+         return SIMD_2x64(_mm_loadu_si128(reinterpret_cast<const __m128i*>(in.data())));
 #elif defined(BOTAN_TARGET_SUPPORTS_NEON)
-         return SIMD_2x64(vld1q_u64(static_cast<const uint64_t*>(in)));
+         return SIMD_2x64(vld1q_u64(static_cast<const uint64_t*>(in.data())));
 #endif
       }
 
-      void store_le(uint64_t out[2]) const { this->store_le(reinterpret_cast<uint8_t*>(out)); }
+      void store_le(uint64_t out[2]) const { this->store_le({reinterpret_cast<uint8_t*>(out), sizeof(out)}); }
 
-      void store_le(uint8_t out[]) const {
+      void store_le(std::span<uint8_t, 16> out) const {
 #if defined(BOTAN_TARGET_SUPPORTS_SSSE3)
-         _mm_storeu_si128(reinterpret_cast<__m128i*>(out), m_simd);
+         _mm_storeu_si128(reinterpret_cast<__m128i*>(out.data()), m_simd);
 #elif defined(BOTAN_TARGET_SUPPORTS_NEON)
-         vst1q_u8(out, vreinterpretq_u8_u64(m_simd));
+         vst1q_u8(out.data(), vreinterpretq_u8_u64(m_simd));
 #endif
       }
 
