@@ -14,6 +14,47 @@
 
 namespace Botan::PCurve {
 
+typedef const GenericPrimeOrderCurve* GPOC;
+
+class GenericScalar final {
+   public:
+      static GenericScalar from_wide_bytes(GPOC m_curve, std::span<const uint8_t> bytes);
+
+      static std::optional<GenericScalar> deserialize(GPOC m_curve, std::span<const uint8_t> bytes);
+
+      static GenericScalar from_stash(GPOC m_curve, PrimeOrderCurve::Scalar);
+
+      static GenericScalar zero(GPOC m_curve);
+
+      static GenericScalar one(GPOC m_curve);
+
+      static GenericScalar random(GPOC m_curve, RandomNumberGenerator& rng);
+
+      friend GenericScalar operator+(const GenericScalar& a, const GenericScalar& b);
+
+      friend GenericScalar operator-(const GenericScalar& a, const GenericScalar& b) { return a + b.negate(); }
+
+      friend GenericScalar operator*(const GenericScalar& a, const GenericScalar& b);
+
+      bool operator==(const GenericScalar& other) const;
+
+      GenericScalar square() const;
+
+      GenericScalar negate() const;
+
+      GenericScalar invert() const;
+
+      void serialize_to(std::span<uint8_t> bytes) const;
+
+      bool is_zero() const;
+
+      std::array<word, PrimeOrderCurve::StorageWords> stash_value() const { return m_val; }
+
+   private:
+      GPOC m_curve;
+      std::array<word, PrimeOrderCurve::StorageWords> m_val;
+};
+
 GenericPrimeOrderCurve::GenericPrimeOrderCurve(
    const BigInt& p, const BigInt& a, const BigInt& b, const BigInt& base_x, const BigInt& base_y, const BigInt& order) :
    m_words(p.sig_words()),
@@ -149,20 +190,24 @@ void GenericPrimeOrderCurve::serialize_point_x(std::span<uint8_t> bytes, const A
 }
 
 void GenericPrimeOrderCurve::serialize_scalar(std::span<uint8_t> bytes, const Scalar& scalar) const {
-   BOTAN_UNUSED(bytes, scalar);
-   throw Not_Implemented(__func__);
+   BOTAN_ARG_CHECK(bytes.size() == m_scalar_bytes, "Invalid length to serialize_scalar");
+   GenericScalar::from_stash(this, scalar).serialize_to(bytes);
 }
 
 std::optional<PrimeOrderCurve::Scalar> GenericPrimeOrderCurve::deserialize_scalar(
    std::span<const uint8_t> bytes) const {
-   BOTAN_UNUSED(bytes);
-   throw Not_Implemented(__func__);
+
+   if(auto s = GenericScalar::deserialize(this, bytes)) {
+      return stash(s.value());
+   } else {
+      return std::nullopt;
+   }
 }
 
 std::optional<PrimeOrderCurve::Scalar> GenericPrimeOrderCurve::scalar_from_wide_bytes(
    std::span<const uint8_t> bytes) const {
-   BOTAN_UNUSED(bytes);
-   throw Not_Implemented(__func__);
+
+   return stash(GenericScalar::from_wide_bytes(this, bytes));
 }
 
 std::optional<PrimeOrderCurve::AffinePoint> GenericPrimeOrderCurve::deserialize_point(
@@ -186,55 +231,53 @@ PrimeOrderCurve::ProjectivePoint GenericPrimeOrderCurve::hash_to_curve_ro(std::s
 }
 
 PrimeOrderCurve::Scalar GenericPrimeOrderCurve::scalar_add(const Scalar& a, const Scalar& b) const {
-   BOTAN_UNUSED(a, b);
-   throw Not_Implemented(__func__);
+   return stash(GenericScalar::from_stash(this, a) + GenericScalar::from_stash(this, b));
 }
 
 PrimeOrderCurve::Scalar GenericPrimeOrderCurve::scalar_sub(const Scalar& a, const Scalar& b) const {
-   BOTAN_UNUSED(a, b);
-   throw Not_Implemented(__func__);
+   return stash(GenericScalar::from_stash(this, a) - GenericScalar::from_stash(this, b));
 }
 
 PrimeOrderCurve::Scalar GenericPrimeOrderCurve::scalar_mul(const Scalar& a, const Scalar& b) const {
-   BOTAN_UNUSED(a, b);
-   throw Not_Implemented(__func__);
+   return stash(GenericScalar::from_stash(this, a) * GenericScalar::from_stash(this, b));
 }
 
 PrimeOrderCurve::Scalar GenericPrimeOrderCurve::scalar_square(const Scalar& s) const {
-   BOTAN_UNUSED(s);
-   throw Not_Implemented(__func__);
+      return stash(GenericScalar::from_stash(this, s).square());
 }
 
 PrimeOrderCurve::Scalar GenericPrimeOrderCurve::scalar_invert(const Scalar& s) const {
-   BOTAN_UNUSED(s);
-   throw Not_Implemented(__func__);
+   return stash(GenericScalar::from_stash(this, s).invert());
 }
 
 PrimeOrderCurve::Scalar GenericPrimeOrderCurve::scalar_negate(const Scalar& s) const {
-   BOTAN_UNUSED(s);
-   throw Not_Implemented(__func__);
+   return stash(GenericScalar::from_stash(this, s).negate());
 }
 
 bool GenericPrimeOrderCurve::scalar_is_zero(const Scalar& s) const {
-   return CT::all_zeros(s._value().data(), m_words).as_bool();
+   return GenericScalar::from_stash(this, s).is_zero();
+   //return CT::all_zeros(s._value().data(), m_words).as_bool();
 }
 
 bool GenericPrimeOrderCurve::scalar_equal(const Scalar& a, const Scalar& b) const {
-   return CT::is_equal(a._value().data(), b._value().data(), m_words).as_bool();
+   return GenericScalar::from_stash(this, a) == GenericScalar::from_stash(this, b);
+   //return CT::is_equal(a._value().data(), b._value().data(), m_words).as_bool();
 }
 
 PrimeOrderCurve::Scalar GenericPrimeOrderCurve::scalar_zero() const {
-   StorageUnit words = { 0 };
-   return Scalar::_create(shared_from_this(), words);
+   return stash(GenericScalar::zero(this));
 }
 
 PrimeOrderCurve::Scalar GenericPrimeOrderCurve::scalar_one() const {
-   return Scalar::_create(shared_from_this(), m_monty_r1);
+   return stash(GenericScalar::one(this));
 }
 
 PrimeOrderCurve::Scalar GenericPrimeOrderCurve::random_scalar(RandomNumberGenerator& rng) const {
-   BOTAN_UNUSED(rng);
-   throw Not_Implemented(__func__);
+   return stash(GenericScalar::random(this, rng));
+}
+
+PrimeOrderCurve::Scalar GenericPrimeOrderCurve::stash(const GenericScalar& s) const {
+   return Scalar::_create(shared_from_this(), s.stash_value());
 }
 
 std::shared_ptr<const PrimeOrderCurve> PCurveInstance::from_params(

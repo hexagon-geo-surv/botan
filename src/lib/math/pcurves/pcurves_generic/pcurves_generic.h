@@ -11,6 +11,8 @@
 
 namespace Botan::PCurve {
 
+class GenericScalar;
+
 class GenericPrimeOrderCurve final : public PrimeOrderCurve, std::enable_shared_from_this<GenericPrimeOrderCurve> {
    public:
       // This class should only be created via PCurveInstance::from_params
@@ -113,6 +115,10 @@ class GenericPrimeOrderCurve final : public PrimeOrderCurve, std::enable_shared_
       Scalar random_scalar(RandomNumberGenerator& rng) const override;
 
    private:
+      friend GenericScalar;
+
+      PrimeOrderCurve::Scalar stash(const GenericScalar& s) const;
+
       size_t m_words;
       size_t m_order_bits;
       size_t m_scalar_bytes;
