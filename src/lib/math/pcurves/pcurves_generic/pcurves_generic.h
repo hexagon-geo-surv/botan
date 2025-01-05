@@ -113,7 +113,7 @@ class GenericPrimeOrderCurve final : public PrimeOrderCurve, std::enable_shared_
       Scalar random_scalar(RandomNumberGenerator& rng) const override;
 
    private:
-      size_t m_mod_words;
+      size_t m_words;
       size_t m_order_bits;
       size_t m_scalar_bytes;
       size_t m_fe_bytes;

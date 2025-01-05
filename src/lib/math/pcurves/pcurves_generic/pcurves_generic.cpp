@@ -16,12 +16,13 @@ namespace Botan::PCurve {
 
 GenericPrimeOrderCurve::GenericPrimeOrderCurve(
    const BigInt& p, const BigInt& a, const BigInt& b, const BigInt& base_x, const BigInt& base_y, const BigInt& order) :
-   m_mod_words(p.sig_words()),
+   m_words(p.sig_words()),
    m_order_bits(order.bits()),
    m_scalar_bytes(order.bytes()),
    m_fe_bytes(p.bytes()) {
 
    BOTAN_ASSERT_NOMSG(m_scalar_bytes == m_fe_bytes);
+   BOTAN_ASSERT_NOMSG(order.sig_words() == m_words);
 
    // TODO setup Montgomery R1,R2,R3
 }
@@ -40,7 +41,8 @@ size_t GenericPrimeOrderCurve::field_element_bytes() const {
 
 PrimeOrderCurve::ProjectivePoint GenericPrimeOrderCurve::mul_by_g(const Scalar& scalar,
                                                                   RandomNumberGenerator& rng) const {
-   return this->mul(m_generator, scalar, rng);
+   BOTAN_UNUSED(scalar, rng);
+   throw Not_Implemented(__func__);
 }
 
 PrimeOrderCurve::ProjectivePoint GenericPrimeOrderCurve::mul(const AffinePoint& pt,
@@ -53,7 +55,6 @@ PrimeOrderCurve::ProjectivePoint GenericPrimeOrderCurve::mul(const AffinePoint& 
 secure_vector<uint8_t> GenericPrimeOrderCurve::mul_x_only(const AffinePoint& pt,
                                                           const Scalar& scalar,
                                                           RandomNumberGenerator& rng) const {
-   return this->mul(m_generator, scalar, rng);
    BOTAN_UNUSED(pt, scalar, rng);
    throw Not_Implemented(__func__);
 }
@@ -215,12 +216,11 @@ PrimeOrderCurve::Scalar GenericPrimeOrderCurve::scalar_negate(const Scalar& s) c
 }
 
 bool GenericPrimeOrderCurve::scalar_is_zero(const Scalar& s) const {
-   StorageUnit zeros = { 0 };
-   return CT::is_equal(s._value().data(), zeros.data(), m_mod_words).as_bool();
+   return CT::all_zeros(s._value().data(), m_words).as_bool();
 }
 
 bool GenericPrimeOrderCurve::scalar_equal(const Scalar& a, const Scalar& b) const {
-   return CT::is_equal(a._value().data(), b._value().data(), m_mod_words).as_bool();
+   return CT::is_equal(a._value().data(), b._value().data(), m_words).as_bool();
 }
 
 PrimeOrderCurve::Scalar GenericPrimeOrderCurve::scalar_zero() const {
