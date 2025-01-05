@@ -33,7 +33,9 @@ class GenericScalar final {
          return GenericScalar(curve, zeros);
       }
 
-      static GenericScalar one(GPOC curve);
+      static GenericScalar one(GPOC curve) {
+         return GenericScalar(curve, curve->m_monty_r1);
+      }
 
       static GenericScalar random(GPOC curve, RandomNumberGenerator& rng);
 
@@ -231,20 +233,6 @@ std::optional<PrimeOrderCurve::AffinePoint> GenericPrimeOrderCurve::deserialize_
    throw Not_Implemented(__func__);
 }
 
-PrimeOrderCurve::AffinePoint GenericPrimeOrderCurve::hash_to_curve_nu(std::string_view hash,
-                                                                      std::span<const uint8_t> input,
-                                                                      std::span<const uint8_t> domain_sep) const {
-   BOTAN_UNUSED(hash, input, domain_sep);
-   throw Not_Implemented("Hash to curve is not implemented for this curve");
-}
-
-PrimeOrderCurve::ProjectivePoint GenericPrimeOrderCurve::hash_to_curve_ro(std::string_view hash,
-                                                                          std::span<const uint8_t> input,
-                                                                          std::span<const uint8_t> domain_sep) const {
-   BOTAN_UNUSED(hash, input, domain_sep);
-   throw Not_Implemented("Hash to curve is not implemented for this curve");
-}
-
 PrimeOrderCurve::Scalar GenericPrimeOrderCurve::scalar_add(const Scalar& a, const Scalar& b) const {
    return stash(GenericScalar::from_stash(this, a) + GenericScalar::from_stash(this, b));
 }
@@ -271,12 +259,10 @@ PrimeOrderCurve::Scalar GenericPrimeOrderCurve::scalar_negate(const Scalar& s) c
 
 bool GenericPrimeOrderCurve::scalar_is_zero(const Scalar& s) const {
    return GenericScalar::from_stash(this, s).is_zero();
-   //return CT::all_zeros(s._value().data(), m_words).as_bool();
 }
 
 bool GenericPrimeOrderCurve::scalar_equal(const Scalar& a, const Scalar& b) const {
    return GenericScalar::from_stash(this, a) == GenericScalar::from_stash(this, b);
-   //return CT::is_equal(a._value().data(), b._value().data(), m_words).as_bool();
 }
 
 PrimeOrderCurve::Scalar GenericPrimeOrderCurve::scalar_zero() const {
@@ -293,6 +279,20 @@ PrimeOrderCurve::Scalar GenericPrimeOrderCurve::random_scalar(RandomNumberGenera
 
 PrimeOrderCurve::Scalar GenericPrimeOrderCurve::stash(const GenericScalar& s) const {
    return Scalar::_create(shared_from_this(), s.stash_value());
+}
+
+PrimeOrderCurve::AffinePoint GenericPrimeOrderCurve::hash_to_curve_nu(std::string_view hash,
+                                                                      std::span<const uint8_t> input,
+                                                                      std::span<const uint8_t> domain_sep) const {
+   BOTAN_UNUSED(hash, input, domain_sep);
+   throw Not_Implemented("Hash to curve is not implemented for this curve");
+}
+
+PrimeOrderCurve::ProjectivePoint GenericPrimeOrderCurve::hash_to_curve_ro(std::string_view hash,
+                                                                          std::span<const uint8_t> input,
+                                                                          std::span<const uint8_t> domain_sep) const {
+   BOTAN_UNUSED(hash, input, domain_sep);
+   throw Not_Implemented("Hash to curve is not implemented for this curve");
 }
 
 std::shared_ptr<const PrimeOrderCurve> PCurveInstance::from_params(
