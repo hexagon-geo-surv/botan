@@ -18,17 +18,24 @@ typedef const GenericPrimeOrderCurve* GPOC;
 
 class GenericScalar final {
    public:
-      static GenericScalar from_wide_bytes(GPOC m_curve, std::span<const uint8_t> bytes);
+      static constexpr size_t N = PrimeOrderCurve::StorageWords;
 
-      static std::optional<GenericScalar> deserialize(GPOC m_curve, std::span<const uint8_t> bytes);
+      static GenericScalar from_wide_bytes(GPOC curve, std::span<const uint8_t> bytes);
 
-      static GenericScalar from_stash(GPOC m_curve, PrimeOrderCurve::Scalar);
+      static std::optional<GenericScalar> deserialize(GPOC curve, std::span<const uint8_t> bytes);
 
-      static GenericScalar zero(GPOC m_curve);
+      static GenericScalar from_stash(GPOC curve, const PrimeOrderCurve::Scalar& s) {
+         return GenericScalar(curve, s._value());
+      }
 
-      static GenericScalar one(GPOC m_curve);
+      static GenericScalar zero(GPOC curve) {
+         std::array<word, N> zeros = {};
+         return GenericScalar(curve, zeros);
+      }
 
-      static GenericScalar random(GPOC m_curve, RandomNumberGenerator& rng);
+      static GenericScalar one(GPOC curve);
+
+      static GenericScalar random(GPOC curve, RandomNumberGenerator& rng);
 
       friend GenericScalar operator+(const GenericScalar& a, const GenericScalar& b);
 
@@ -36,7 +43,13 @@ class GenericScalar final {
 
       friend GenericScalar operator*(const GenericScalar& a, const GenericScalar& b);
 
-      bool operator==(const GenericScalar& other) const;
+      bool operator==(const GenericScalar& other) const {
+         if(this->m_curve != other.m_curve) {
+            return false;
+         }
+
+         return CT::is_equal(m_val.data(), other.m_val.data(), N).as_bool();
+      }
 
       GenericScalar square() const;
 
@@ -51,6 +64,8 @@ class GenericScalar final {
       std::array<word, PrimeOrderCurve::StorageWords> stash_value() const { return m_val; }
 
    private:
+      GenericScalar(GPOC curve, std::array<word, N> val) : m_curve(curve), m_val(val) {}
+
       GPOC m_curve;
       std::array<word, PrimeOrderCurve::StorageWords> m_val;
 };
