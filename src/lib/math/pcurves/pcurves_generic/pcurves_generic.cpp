@@ -10,6 +10,7 @@
 #include <botan/exceptn.h>
 #include <botan/rng.h>
 #include <botan/internal/ct_utils.h>
+#include <botan/internal/loadstor.h>
 #include <botan/internal/mp_core.h>
 #include <botan/internal/pcurves_instance.h>
 #include <botan/internal/primality.h>
@@ -25,9 +26,34 @@ class GenericScalar final {
       typedef word W;
       static constexpr size_t N = PrimeOrderCurve::StorageWords;
 
-      static GenericScalar from_wide_bytes(GPOC curve, std::span<const uint8_t> bytes);
+      static std::optional<GenericScalar> from_wide_bytes(GPOC curve, std::span<const uint8_t> bytes) {
+         const size_t mlen = modulus_bytes(curve);
 
-      static std::optional<GenericScalar> deserialize(GPOC curve, std::span<const uint8_t> bytes);
+         if(bytes.size() >= 2 * mlen) {
+            return {};
+         }
+         static_assert(8 * L <= 2 * Self::BITS);
+         std::array<uint8_t, 2 * BYTES> padded_bytes = {};
+         copy_mem(std::span{padded_bytes}.template last<L>(), bytes);
+         return Self(Rep::wide_to_rep(bytes_to_words<W, 2 * N, 2 * BYTES>(std::span{padded_bytes})));
+      }
+
+      static std::optional<GenericScalar> deserialize(GPOC curve, std::span<const uint8_t> bytes) {
+         const size_t len = modulus_bytes(curve);
+
+         if(bytes.size() != len) {
+            return {};
+         }
+
+         const auto words = bytes_to_words<W, N, BYTES>(bytes.first<Self::BYTES>());
+
+         if(!bigint_ct_is_lt(words.data(), N, modulus(curve).data(), N).as_bool()) {
+            return {};
+         }
+
+         // Safe because we checked above that words is an integer < P
+         return GenericScalar(curve, words);
+      }
 
       static GenericScalar from_stash(GPOC curve, const PrimeOrderCurve::Scalar& s) {
          return GenericScalar(curve, s._value());
@@ -176,7 +202,18 @@ class GenericScalar final {
          return pow_vartime(modulus_minus_2(m_curve));
       }
 
-      void serialize_to(std::span<uint8_t> bytes) const;
+      void serialize_to(std::span<uint8_t> bytes) const {
+         auto v = from_rep(m_curve, m_val);
+         std::reverse(v.begin(), v.end());
+
+         const size_t flen = modulus_bytes(m_curve);
+         BOTAN_ARG_CHECK(bytes.size() == flen, "Expected output span provided");
+
+         // Remove leading zero bytes
+         const auto padded_bytes = store_be(v);
+         const size_t extra = N * WordInfo<W>::bytes - flen;
+         copy_mem(bytes, std::span{padded_bytes}.subspan(extra, flen));
+      }
 
       CT::Choice is_zero() const {
          return CT::all_zeros(m_val.data(), N).as_choice();
@@ -213,6 +250,11 @@ class GenericScalar final {
       static std::array<W, N> redc(GPOC curve, std::array<W, 2*N> z) {
          // if constexpr(IsField) ...
          return curve->m_order_monty_r1;
+      }
+
+      static std::array<W, N> from_rep(GPOC curve, std::array<W, N> z) {
+         // if constexpr(IsField) ...
+         throw Not_Implemented("todo");
       }
 
       static const std::array<W, N>& monty_r1(GPOC curve) {
@@ -412,7 +454,11 @@ std::optional<PrimeOrderCurve::Scalar> GenericPrimeOrderCurve::deserialize_scala
 std::optional<PrimeOrderCurve::Scalar> GenericPrimeOrderCurve::scalar_from_wide_bytes(
    std::span<const uint8_t> bytes) const {
 
-   return stash(GenericScalar::from_wide_bytes(this, bytes));
+   if(auto s = GenericScalar::from_wide_bytes(this, bytes)) {
+      return stash(s.value());
+   } else {
+      return std::nullopt;
+   }
 }
 
 std::optional<PrimeOrderCurve::AffinePoint> GenericPrimeOrderCurve::deserialize_point(
