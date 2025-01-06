@@ -62,6 +62,34 @@ class GenericScalar final {
          return GenericScalar(curve, redc(curve, z));
       }
 
+      GenericScalar square() const {
+         auto curve = this->m_curve;
+
+         std::array<W, 2 * N> z;
+         comba_sqr<N>(z.data(), this->data());
+         return GenericScalar(curve, redc(curve, z));
+      }
+
+      GenericScalar negate() const {
+         auto x_is_zero = CT::all_zeros(this->data(), N);
+
+         std::array<W, N> r;
+         bigint_sub3(r.data(), modulus(m_curve).data(), N, this->data(), N);
+         x_is_zero.if_set_zero_out(r.data(), N);
+         return GenericScalar(m_curve, r);
+      }
+
+      GenericScalar invert() const {
+
+
+      }
+
+      void serialize_to(std::span<uint8_t> bytes) const;
+
+      bool is_zero() const {
+         return CT::all_zeros(m_val.data(), N).as_bool();
+      }
+
       bool operator==(const GenericScalar& other) const {
          if(this->m_curve != other.m_curve) {
             return false;
@@ -69,16 +97,6 @@ class GenericScalar final {
 
          return CT::is_equal(m_val.data(), other.m_val.data(), N).as_bool();
       }
-
-      GenericScalar square() const;
-
-      GenericScalar negate() const;
-
-      GenericScalar invert() const;
-
-      void serialize_to(std::span<uint8_t> bytes) const;
-
-      bool is_zero() const;
 
       std::array<W, N> stash_value() const { return m_val; }
 
