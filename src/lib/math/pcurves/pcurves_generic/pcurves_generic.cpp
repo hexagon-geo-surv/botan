@@ -9,6 +9,7 @@
 #include <botan/bigint.h>
 #include <botan/exceptn.h>
 #include <botan/internal/ct_utils.h>
+#include <botan/internal/mp_core.h>
 #include <botan/internal/pcurves_instance.h>
 #include <botan/internal/primality.h>
 
@@ -18,6 +19,7 @@ typedef const GenericPrimeOrderCurve* GPOC;
 
 class GenericScalar final {
    public:
+      typedef word W;
       static constexpr size_t N = PrimeOrderCurve::StorageWords;
 
       static GenericScalar from_wide_bytes(GPOC curve, std::span<const uint8_t> bytes);
@@ -29,21 +31,36 @@ class GenericScalar final {
       }
 
       static GenericScalar zero(GPOC curve) {
-         std::array<word, N> zeros = {};
+         std::array<W, N> zeros = {};
          return GenericScalar(curve, zeros);
       }
 
       static GenericScalar one(GPOC curve) {
-         return GenericScalar(curve, curve->m_monty_r1);
+         return GenericScalar(curve, monty_r1(curve));
       }
 
       static GenericScalar random(GPOC curve, RandomNumberGenerator& rng);
 
-      friend GenericScalar operator+(const GenericScalar& a, const GenericScalar& b);
+      friend GenericScalar operator+(const GenericScalar& a, const GenericScalar& b) {
+         auto curve = check_curve(a, b);
+
+         std::array<W, N> t;
+         W carry = bigint_add<W, N>(t, a.value(), b.value());
+
+         std::array<W, N> r;
+         bigint_monty_maybe_sub<N>(r.data(), carry, t.data(), modulus(curve).data());
+         return GenericScalar(curve, r);
+      }
 
       friend GenericScalar operator-(const GenericScalar& a, const GenericScalar& b) { return a + b.negate(); }
 
-      friend GenericScalar operator*(const GenericScalar& a, const GenericScalar& b);
+      friend GenericScalar operator*(const GenericScalar& a, const GenericScalar& b) {
+         auto curve = check_curve(a, b);
+
+         std::array<W, 2 * N> z;
+         comba_mul<N>(z.data(), a.data(), b.data());
+         return GenericScalar(curve, redc(curve, z));
+      }
 
       bool operator==(const GenericScalar& other) const {
          if(this->m_curve != other.m_curve) {
@@ -63,21 +80,63 @@ class GenericScalar final {
 
       bool is_zero() const;
 
-      std::array<word, PrimeOrderCurve::StorageWords> stash_value() const { return m_val; }
+      std::array<W, N> stash_value() const { return m_val; }
 
    private:
-      GenericScalar(GPOC curve, std::array<word, N> val) : m_curve(curve), m_val(val) {}
+      const std::array<W, N>& value() const { return m_val; }
+
+      constexpr const W* data() const { return m_val.data(); }
+
+      static GPOC check_curve(const GenericScalar& a, const GenericScalar& b) {
+         BOTAN_STATE_CHECK(a.m_curve == b.m_curve);
+         return a.m_curve;
+      }
+
+      static size_t words(GPOC curve) {
+         return curve->m_words;
+      }
+
+      static std::array<W, N> redc(GPOC curve, std::array<W, 2*N> z) {
+         // if constexpr(IsField) ...
+         return curve->m_order_monty_r1;
+      }
+
+      static const std::array<W, N>& monty_r1(GPOC curve) {
+         // if constexpr(IsField) ...
+         return curve->m_order_monty_r1;
+      }
+
+      static const std::array<W, N>& modulus(GPOC curve) {
+         // if constexpr(IsField) ...
+         return curve->m_order;
+      }
+
+      GenericScalar(GPOC curve, std::array<W, N> val) : m_curve(curve), m_val(val) {}
 
       GPOC m_curve;
-      std::array<word, PrimeOrderCurve::StorageWords> m_val;
+      std::array<W, N> m_val;
 };
+
+namespace {
+
+std::array<word, PrimeOrderCurve::StorageWords> bn_to_fixed(const BigInt& n) {
+   const size_t n_words = n.sig_words();
+   BOTAN_ASSERT_NOMSG(n_words <= PrimeOrderCurve::StorageWords);
+
+   std::array<word, PrimeOrderCurve::StorageWords> r = {};
+   copy_mem(r.data(), n._data(), n_words);
+   return r;
+}
+
+}
 
 GenericPrimeOrderCurve::GenericPrimeOrderCurve(
    const BigInt& p, const BigInt& a, const BigInt& b, const BigInt& base_x, const BigInt& base_y, const BigInt& order) :
    m_words(p.sig_words()),
    m_order_bits(order.bits()),
    m_scalar_bytes(order.bytes()),
-   m_fe_bytes(p.bytes()) {
+   m_fe_bytes(p.bytes()),
+   m_order(bn_to_fixed(order)) {
 
    BOTAN_ASSERT_NOMSG(m_scalar_bytes == m_fe_bytes);
    BOTAN_ASSERT_NOMSG(order.sig_words() == m_words);
