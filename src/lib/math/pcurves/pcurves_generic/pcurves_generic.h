@@ -125,7 +125,9 @@ class GenericPrimeOrderCurve final : public PrimeOrderCurve, std::enable_shared_
       size_t m_fe_bytes;
 
       StorageUnit m_field;
+      StorageUnit m_field_minus_2;
       StorageUnit m_order;
+      StorageUnit m_order_minus_2;
       StorageUnit m_order_monty_r1;
       /// ???
 };

@@ -8,10 +8,13 @@
 
 #include <botan/bigint.h>
 #include <botan/exceptn.h>
+#include <botan/rng.h>
 #include <botan/internal/ct_utils.h>
 #include <botan/internal/mp_core.h>
 #include <botan/internal/pcurves_instance.h>
 #include <botan/internal/primality.h>
+
+#include <botan/internal/pcurves_util.h>
 
 namespace Botan::PCurve {
 
@@ -39,7 +42,32 @@ class GenericScalar final {
          return GenericScalar(curve, monty_r1(curve));
       }
 
-      static GenericScalar random(GPOC curve, RandomNumberGenerator& rng);
+      static GenericScalar random(GPOC curve, RandomNumberGenerator& rng) {
+         constexpr size_t MAX_ATTEMPTS = 1000;
+
+         const size_t bits = modulus_bits(curve);
+
+         std::vector<uint8_t> buf(modulus_bytes(curve));
+
+         for(size_t i = 0; i != MAX_ATTEMPTS; ++i) {
+            rng.randomize(buf);
+
+            // Zero off high bits that if set would certainly cause us
+            // to be out of range
+            if(bits % 8 != 0) {
+               const uint8_t mask = 0xFF >> (8 - (bits % 8));
+               buf[0] &= mask;
+            }
+
+            if(auto s = GenericScalar::deserialize(curve, buf)) {
+               if(s.value().is_nonzero().as_bool()) {
+                  return s.value();
+               }
+            }
+         }
+
+         throw Internal_Error("Failed to generate random Scalar within bounded number of attempts");
+      }
 
       friend GenericScalar operator+(const GenericScalar& a, const GenericScalar& b) {
          auto curve = check_curve(a, b);
@@ -62,12 +90,77 @@ class GenericScalar final {
          return GenericScalar(curve, redc(curve, z));
       }
 
+      GenericScalar& operator*=(const GenericScalar& other) {
+         auto curve = check_curve(*this, other);
+
+         std::array<W, 2 * N> z;
+         comba_mul<N>(z.data(), data(), other.data());
+         m_val = redc(curve, z);
+         return (*this);
+      }
+
       GenericScalar square() const {
          auto curve = this->m_curve;
 
          std::array<W, 2 * N> z;
          comba_sqr<N>(z.data(), this->data());
          return GenericScalar(curve, redc(curve, z));
+      }
+
+      /// Repeated squaring in place
+      void square_n(size_t n) {
+         std::array<W, 2 * N> z;
+         for(size_t i = 0; i != n; ++i) {
+            comba_sqr<N>(z.data(), this->data());
+            m_val = redc(m_curve, z);
+         }
+      }
+
+      GenericScalar pow_vartime(const std::array<W, N>& exp) const {
+         constexpr size_t WindowBits = 4;
+         constexpr size_t WindowElements = (1 << WindowBits) - 1;
+
+         const size_t Windows = (modulus_bits(m_curve) + WindowBits - 1) / WindowBits;
+
+         /*
+         A simple fixed width window modular multiplication.
+
+         TODO: investigate using sliding window here
+         */
+
+         std::vector<GenericScalar> tbl;
+
+         tbl.push_back(*this);
+
+         tbl[0] = (*this);
+
+         for(size_t i = 1; i != WindowElements; ++i) {
+            if(i % 2 == 1) {
+               tbl.push_back(tbl[i / 2].square());
+            } else {
+               tbl.push_back(tbl[i - 1] * tbl[0]);
+            }
+         }
+
+         auto r = GenericScalar::one(m_curve);
+
+         const size_t w0 = read_window_bits<WindowBits>(std::span{exp}, (Windows - 1) * WindowBits);
+
+         if(w0 > 0) {
+            r = tbl[w0 - 1];
+         }
+
+         for(size_t i = 1; i != Windows; ++i) {
+            r.square_n(WindowBits);
+
+            const size_t w = read_window_bits<WindowBits>(std::span{exp}, (Windows - i - 1) * WindowBits);
+
+            if(w > 0) {
+               r *= tbl[w - 1];
+            }
+         }
+
+         return r;
       }
 
       GenericScalar negate() const {
@@ -80,14 +173,17 @@ class GenericScalar final {
       }
 
       GenericScalar invert() const {
-
-
+         return pow_vartime(modulus_minus_2(m_curve));
       }
 
       void serialize_to(std::span<uint8_t> bytes) const;
 
-      bool is_zero() const {
-         return CT::all_zeros(m_val.data(), N).as_bool();
+      CT::Choice is_zero() const {
+         return CT::all_zeros(m_val.data(), N).as_choice();
+      }
+
+      CT::Choice is_nonzero() const {
+         return !is_zero();
       }
 
       bool operator==(const GenericScalar& other) const {
@@ -127,6 +223,21 @@ class GenericScalar final {
       static const std::array<W, N>& modulus(GPOC curve) {
          // if constexpr(IsField) ...
          return curve->m_order;
+      }
+
+      static size_t modulus_bits(GPOC curve) {
+         // if constexpr(IsField) ...
+         return curve->m_order_bits;
+      }
+
+      static size_t modulus_bytes(GPOC curve) {
+         // if constexpr(IsField) ...
+         return curve->m_scalar_bytes;
+      }
+
+      static const std::array<W, N>& modulus_minus_2(GPOC curve) {
+         // if constexpr(IsField) ...
+         return curve->m_order_minus_2;
       }
 
       GenericScalar(GPOC curve, std::array<W, N> val) : m_curve(curve), m_val(val) {}
@@ -335,7 +446,7 @@ PrimeOrderCurve::Scalar GenericPrimeOrderCurve::scalar_negate(const Scalar& s) c
 }
 
 bool GenericPrimeOrderCurve::scalar_is_zero(const Scalar& s) const {
-   return GenericScalar::from_stash(this, s).is_zero();
+   return GenericScalar::from_stash(this, s).is_zero().as_bool();
 }
 
 bool GenericPrimeOrderCurve::scalar_equal(const Scalar& a, const Scalar& b) const {
