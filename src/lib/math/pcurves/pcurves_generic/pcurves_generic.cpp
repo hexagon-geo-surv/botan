@@ -365,6 +365,7 @@ GenericPrimeOrderCurve::GenericPrimeOrderCurve(
    BOTAN_ASSERT_NOMSG(m_scalar_bytes == m_fe_bytes);
    BOTAN_ASSERT_NOMSG(order.sig_words() == m_words);
 
+   m_monty_r1 = 
    // TODO setup Montgomery R1,R2,R3
 }
 
