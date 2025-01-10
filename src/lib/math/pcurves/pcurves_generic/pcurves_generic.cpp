@@ -19,7 +19,43 @@
 
 namespace Botan::PCurve {
 
+namespace {
+
 typedef const GenericPrimeOrderCurve* GPOC;
+
+template <size_t N>
+inline constexpr std::optional<std::array<word, N>> bytes_to_words(std::span<const uint8_t> bytes) {
+   if(bytes.size() > WordInfo<word>::bytes * N) {
+      return std::nullopt;
+   }
+
+   std::array<word, N> r = {};
+
+   const size_t full_words = bytes.size() / WordInfo<word>::bytes;
+   const size_t extra_bytes = bytes.size() % WordInfo<word>::bytes;
+
+   if(full_words + (extra_bytes ? 1 : 0) > N) {
+      return std::nullopt;
+   }
+
+   for(size_t i = 0; i != full_words; ++i) {
+      r[i] = load_be<word>(bytes.data(), full_words - 1 - i);
+   }
+
+   if(extra_bytes > 0) {
+      const size_t shift = extra_bytes * 8;
+      bigint_shl1(r.data(), r.size(), r.size(), shift);
+
+      for(size_t i = 0; i != extra_bytes; ++i) {
+         const word b0 = bytes[WordInfo<word>::bytes * full_words + i];
+         r[0] |= (b0 << (8 * (extra_bytes - 1 - i)));
+      }
+   }
+
+   return r;
+}
+
+}
 
 class GenericScalar final {
    public:
@@ -29,13 +65,20 @@ class GenericScalar final {
       static std::optional<GenericScalar> from_wide_bytes(GPOC curve, std::span<const uint8_t> bytes) {
          const size_t mlen = modulus_bytes(curve);
 
-         if(bytes.size() >= 2 * mlen) {
+         if(bytes.size() > 2 * mlen) {
             return {};
          }
-         static_assert(8 * L <= 2 * Self::BITS);
-         std::array<uint8_t, 2 * BYTES> padded_bytes = {};
-         copy_mem(std::span{padded_bytes}.template last<L>(), bytes);
-         return Self(Rep::wide_to_rep(bytes_to_words<W, 2 * N, 2 * BYTES>(std::span{padded_bytes})));
+
+         std::array<uint8_t, 2 * N> padded_bytes = {};
+         copy_mem(std::span{padded_bytes}.last(bytes.size()), bytes);
+
+         auto words = bytes_to_words<2 * N>(std::span{padded_bytes});
+         if(words) {
+            auto in_rep = wide_to_rep(curve, words.value());
+            return GenericScalar(curve, in_rep);
+         } else {
+            return std::nullopt;
+         }
       }
 
       static std::optional<GenericScalar> deserialize(GPOC curve, std::span<const uint8_t> bytes) {
@@ -45,14 +88,18 @@ class GenericScalar final {
             return {};
          }
 
-         const auto words = bytes_to_words<W, N, BYTES>(bytes.first<Self::BYTES>());
+         const auto words = bytes_to_words<N>(bytes);
 
-         if(!bigint_ct_is_lt(words.data(), N, modulus(curve).data(), N).as_bool()) {
+         if(words) {
+            if(!bigint_ct_is_lt(words->data(), N, modulus(curve).data(), N).as_bool()) {
+               return {};
+            }
+
+            // Safe because we checked above that words is an integer < P
+            return GenericScalar(curve, *words);
+         } else {
             return {};
          }
-
-         // Safe because we checked above that words is an integer < P
-         return GenericScalar(curve, words);
       }
 
       static GenericScalar from_stash(GPOC curve, const PrimeOrderCurve::Scalar& s) {
@@ -216,7 +263,7 @@ class GenericScalar final {
       }
 
       CT::Choice is_zero() const {
-         return CT::all_zeros(m_val.data(), N).as_choice();
+         return CT::all_zeros(m_val.data(), words(m_curve)).as_choice();
       }
 
       CT::Choice is_nonzero() const {
@@ -253,8 +300,14 @@ class GenericScalar final {
       }
 
       static std::array<W, N> from_rep(GPOC curve, std::array<W, N> z) {
+         std::array<W, 2 * N> ze = {};
+         copy_mem(std::span{ze}.template first<N>(), z);
+         return redc(curve, ze);
+      }
+
+      static std::array<W, N> wide_to_rep(GPOC curve, std::array<W, 2 * N> z) {
          // if constexpr(IsField) ...
-         throw Not_Implemented("todo");
+         throw Not_Implemented(__func__);
       }
 
       static const std::array<W, N>& monty_r1(GPOC curve) {
@@ -512,7 +565,13 @@ PrimeOrderCurve::Scalar GenericPrimeOrderCurve::random_scalar(RandomNumberGenera
 }
 
 PrimeOrderCurve::Scalar GenericPrimeOrderCurve::stash(const GenericScalar& s) const {
-   return Scalar::_create(shared_from_this(), s.stash_value());
+   printf("stashing\n");
+   try {
+      return Scalar::_create(shared_from_this(), s.stash_value());
+   } catch(std::exception& e) {
+      printf("shared_from_this failed %s\n", e.what());
+      throw Not_Implemented("wtf");
+   }
 }
 
 PrimeOrderCurve::AffinePoint GenericPrimeOrderCurve::hash_to_curve_nu(std::string_view hash,

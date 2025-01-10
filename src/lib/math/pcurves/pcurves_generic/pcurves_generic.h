@@ -13,7 +13,7 @@ namespace Botan::PCurve {
 
 class GenericScalar;
 
-class GenericPrimeOrderCurve final : public PrimeOrderCurve, std::enable_shared_from_this<GenericPrimeOrderCurve> {
+class GenericPrimeOrderCurve final : public PrimeOrderCurve, public std::enable_shared_from_this<GenericPrimeOrderCurve> {
    public:
       // This class should only be created via PCurveInstance::from_params
       GenericPrimeOrderCurve(const BigInt& p,

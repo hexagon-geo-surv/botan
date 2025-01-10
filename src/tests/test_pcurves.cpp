@@ -14,6 +14,10 @@
    #include <botan/internal/stl_util.h>
 #endif
 
+#if defined(BOTAN_HAS_PCURVES_GENERIC)
+   #include <botan/bigint.h>
+#endif
+
 namespace Botan_Tests {
 
 #if defined(BOTAN_HAS_PCURVES)
@@ -261,6 +265,101 @@ class Pcurve_Arithmetic_Tests final : public Test {
 };
 
 BOTAN_REGISTER_TEST("pcurves", "pcurves_arith", Pcurve_Arithmetic_Tests);
+
+class Pcurve_Scalar_Math_Tests final : public Test {
+   public:
+      std::vector<Test::Result> run() override {
+         std::vector<Test::Result> results;
+
+         auto& rng = Test::rng();
+
+         for(auto curve_id : Botan::PCurve::PrimeOrderCurveId::all()) {
+            Test::Result result("Pcurves scalar arithmetic " + curve_id.to_string());
+
+            auto curve = Botan::PCurve::PrimeOrderCurve::from_id(curve_id);
+
+            if(curve) {
+               test_scalar_math(result, curve, rng);
+            } else {
+               result.test_note("Skipping test due to missing pcurve " + curve_id.to_string());
+            }
+
+            results.push_back(result);
+         }
+
+#if defined(BOTAN_HAS_PCURVES_GENERIC)
+         Test::Result result("Pcurves scalar arithmetic BADA55-256");
+         auto curve = Botan::PCurve::PrimeOrderCurve::from_params(
+            Botan::BigInt::from_string("0xf1fd178c0b3ad58f10126de8ce42435b3961adbcabc8ca6de8fcf353d86e9c03"),
+            Botan::BigInt::from_string("0xf1fd178c0b3ad58f10126de8ce42435b3961adbcabc8ca6de8fcf353d86e9c00"),
+            Botan::BigInt::from_string("0xbada55bada55bada55bada55bada55bada55bada55bada55bada55bada55bd48"),
+            Botan::BigInt::from_string("1"),
+            Botan::BigInt::from_string("2"),
+            Botan::BigInt::from_string("0xf1fd178c0b3ad58f10126de8ce42435a1a8e3837861aa0efa0e52aec7379c967")
+            );
+
+         if(curve) {
+            test_scalar_math(result, curve, rng);
+         } else {
+            result.test_failure("Failed to set up BADA55-256");
+         }
+         results.push_back(result);
+#endif
+
+         return results;
+      }
+
+   private:
+      void test_scalar_math(Test::Result& result,
+                            std::shared_ptr<const Botan::PCurve::PrimeOrderCurve> curve,
+                            Botan::RandomNumberGenerator& rng) {
+
+         result.start_timer();
+
+         const auto zero = curve->scalar_zero();
+         const auto one = curve->scalar_one();
+         const auto n_one = one.negate();
+
+         result.test_eq("Zero is zero", zero.is_zero(), true);
+         result.test_eq("One is not zero", one.is_zero(), false);
+
+         result.test_eq("1 - 1 = 0", (one - one).serialize(), zero.serialize());
+
+         result.test_eq("1 + -1 = 0", (one + n_one).serialize(), zero.serialize());
+
+         // Not mathematically correct, but ok for our purposes
+         result.test_eq("Inverse of zero is zero", zero.invert().serialize(), zero.serialize());
+         result.test_eq("Inverse of zero is zero (2)", zero.invert().is_zero(), true);
+
+         result.test_eq("Inverse of 1 is 1", one.invert().serialize(), one.serialize());
+
+         for(size_t i = 0; i != 16; ++i) {
+            auto r = curve->random_scalar(rng);
+            auto r2 = r * r;
+            auto r_inv = r.invert();
+            result.test_eq("r * r^-1 = 1", (r * r_inv).serialize(), one.serialize());
+            result.test_eq("r^2 = r*r", r.square().serialize(), r2.serialize());
+            result.test_eq("r*-1 = -r", (r * n_one).serialize(), r.negate().serialize());
+
+            result.test_eq("(r^-1)^2 = (r^2)^-1", r_inv.square().serialize(), r2.invert().serialize());
+         }
+
+         for(size_t i = 0; i != 16; ++i) {
+            auto a = curve->random_scalar(rng);
+            auto b = curve->random_scalar(rng);
+
+            auto a_plus_b = a + b;
+            result.test_eq("(a + b) - b == a", (a_plus_b - b).serialize(), a.serialize());
+            result.test_eq("(a + b) - a == b", (a_plus_b - a).serialize(), b.serialize());
+            result.test_eq("b - (a + b) == -a", (b - a_plus_b).serialize(), a.negate().serialize());
+            result.test_eq("a - (a + b) == -b", (a - a_plus_b).serialize(), b.negate().serialize());
+         }
+
+         result.end_timer();
+      }
+};
+
+BOTAN_REGISTER_TEST("pcurves", "pcurves_scalar_math", Pcurve_Scalar_Math_Tests);
 
 class Pcurve_PointEnc_Tests final : public Test {
    public:
