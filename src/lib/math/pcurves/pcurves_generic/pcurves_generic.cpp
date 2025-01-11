@@ -17,11 +17,33 @@
 
 #include <botan/internal/pcurves_util.h>
 
+#include <iostream> // remove
+
 namespace Botan::PCurve {
 
 namespace {
 
 typedef const GenericPrimeOrderCurve* GPOC;
+
+std::array<word, PrimeOrderCurve::StorageWords> bn_to_fixed(const BigInt& n) {
+   const size_t n_words = n.sig_words();
+   BOTAN_ASSERT_NOMSG(n_words <= PrimeOrderCurve::StorageWords);
+
+   std::array<word, PrimeOrderCurve::StorageWords> r = {};
+   copy_mem(r.data(), n._data(), n_words);
+   return r;
+}
+
+template <size_t N>
+void dump(const char* what, std::array<word, N> x) {
+   printf("%s = ", what);
+
+   for(size_t i = 0; i != N; ++i) {
+      printf("%016lX ", x[N - 1 - i]);
+   }
+
+   printf("\n");
+}
 
 template <size_t N>
 inline constexpr std::optional<std::array<word, N>> bytes_to_words(std::span<const uint8_t> bytes) {
@@ -96,7 +118,7 @@ class GenericScalar final {
             }
 
             // Safe because we checked above that words is an integer < P
-            return GenericScalar(curve, *words);
+            return GenericScalar(curve, to_rep(curve, *words));
          } else {
             return {};
          }
@@ -250,7 +272,12 @@ class GenericScalar final {
       }
 
       void serialize_to(std::span<uint8_t> bytes) const {
+         dump("m_val", m_val);
          auto v = from_rep(m_curve, m_val);
+         dump("from_rep", v);
+
+         auto vv = to_rep(m_curve, v);
+         dump("to_rep_check", vv);
          std::reverse(v.begin(), v.end());
 
          const size_t flen = modulus_bytes(m_curve);
@@ -296,7 +323,20 @@ class GenericScalar final {
 
       static std::array<W, N> redc(GPOC curve, std::array<W, 2*N> z) {
          // if constexpr(IsField) ...
-         return monty_redc(z, modulus(curve), p_dash(curve));
+         const auto& mod = modulus(curve);
+         const auto mod_size = curve->m_monty_order.p().sig_words();
+         std::array<W, 2*N> ws = {};
+         bigint_monty_redc(z.data(), mod.data(), mod_size, p_dash(curve), ws.data(), ws.size());
+         std::array<W, N> x;
+         copy_mem(x, std::span{z}.first<N>());
+         return x;
+
+         #if 0
+         BigInt v;
+         v.set_words(z.data(), 2*N);
+         secure_vector<word> ws(2*N);
+         return bn_to_fixed(curve->m_monty_order.redc(v, ws));
+         #endif
       }
 
       static std::array<W, N> from_rep(GPOC curve, std::array<W, N> z) {
@@ -305,7 +345,14 @@ class GenericScalar final {
          return redc(curve, ze);
       }
 
+      static std::array<W, N> to_rep(GPOC curve, std::array<W, N> x) {
+         std::array<W, 2 * N> z;
+         comba_mul<N>(z.data(), x.data(), monty_r2(curve).data());
+         return redc(curve, z);
+      }
+
       static std::array<W, N> wide_to_rep(GPOC curve, std::array<W, 2 * N> z) {
+         BOTAN_UNUSED(curve, z);
          // if constexpr(IsField) ...
          throw Not_Implemented(__func__);
       }
@@ -313,6 +360,11 @@ class GenericScalar final {
       static const std::array<W, N>& monty_r1(GPOC curve) {
          // if constexpr(IsField) ...
          return curve->m_order_monty_r1;
+      }
+
+      static const std::array<W, N>& monty_r2(GPOC curve) {
+         // if constexpr(IsField) ...
+         return curve->m_order_monty_r2;
       }
 
       static const std::array<W, N>& modulus(GPOC curve) {
@@ -346,32 +398,35 @@ class GenericScalar final {
       std::array<W, N> m_val;
 };
 
-namespace {
-
-std::array<word, PrimeOrderCurve::StorageWords> bn_to_fixed(const BigInt& n) {
-   const size_t n_words = n.sig_words();
-   BOTAN_ASSERT_NOMSG(n_words <= PrimeOrderCurve::StorageWords);
-
-   std::array<word, PrimeOrderCurve::StorageWords> r = {};
-   copy_mem(r.data(), n._data(), n_words);
-   return r;
-}
-
-}
-
 GenericPrimeOrderCurve::GenericPrimeOrderCurve(
    const BigInt& p, const BigInt& a, const BigInt& b, const BigInt& base_x, const BigInt& base_y, const BigInt& order) :
    m_words(p.sig_words()),
    m_order_bits(order.bits()),
    m_scalar_bytes(order.bytes()),
    m_fe_bytes(p.bytes()),
+   m_monty_order(order),
+   m_monty_field(p),
    m_order(bn_to_fixed(order)) {
+
+   BOTAN_UNUSED(a, b, base_x, base_y); // todo
 
    BOTAN_ASSERT_NOMSG(m_scalar_bytes == m_fe_bytes);
    BOTAN_ASSERT_NOMSG(order.sig_words() == m_words);
 
-   m_order_monty_r1 = 2**
-   // TODO setup Montgomery R1,R2,R3
+   m_order_monty_r1 = bn_to_fixed(m_monty_order.R1());
+   std::cout << "bn order r1 " << std::hex << m_monty_order.R1() << "\n";
+   secure_vector<word> ws;
+   dump("order_monty_r1", m_order_monty_r1);
+   m_order_monty_r2 = bn_to_fixed(m_monty_order.R2());
+   m_order_monty_r3 = bn_to_fixed(m_monty_order.R3());
+   m_order_minus_2 = bn_to_fixed(order - 2);
+   m_order_p_dash = m_monty_order.p_dash();
+
+   m_field_monty_r1 = bn_to_fixed(m_monty_field.R1());
+   m_field_monty_r2 = bn_to_fixed(m_monty_field.R2());
+   m_field_monty_r3 = bn_to_fixed(m_monty_field.R3());
+   m_field_minus_2 = bn_to_fixed(p - 2);
+   m_field_p_dash = m_monty_field.p_dash();
 }
 
 size_t GenericPrimeOrderCurve::order_bits() const {
@@ -571,13 +626,7 @@ PrimeOrderCurve::Scalar GenericPrimeOrderCurve::random_scalar(RandomNumberGenera
 }
 
 PrimeOrderCurve::Scalar GenericPrimeOrderCurve::stash(const GenericScalar& s) const {
-   printf("stashing\n");
-   try {
-      return Scalar::_create(shared_from_this(), s.stash_value());
-   } catch(std::exception& e) {
-      printf("shared_from_this failed %s\n", e.what());
-      throw Not_Implemented("wtf");
-   }
+   return Scalar::_create(shared_from_this(), s.stash_value());
 }
 
 PrimeOrderCurve::AffinePoint GenericPrimeOrderCurve::hash_to_curve_nu(std::string_view hash,

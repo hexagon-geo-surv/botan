@@ -9,6 +9,8 @@
 
 #include <botan/internal/pcurves.h>
 
+#include <botan/internal/monty.h>
+
 namespace Botan::PCurve {
 
 class GenericScalar;
@@ -124,12 +126,21 @@ class GenericPrimeOrderCurve final : public PrimeOrderCurve, public std::enable_
       size_t m_scalar_bytes;
       size_t m_fe_bytes;
 
+      Montgomery_Params m_monty_order;
+      Montgomery_Params m_monty_field;
+
       StorageUnit m_field;
       StorageUnit m_field_minus_2;
+      StorageUnit m_field_monty_r1;
+      StorageUnit m_field_monty_r2;
+      StorageUnit m_field_monty_r3;
+      word m_field_p_dash;
+
       StorageUnit m_order;
       StorageUnit m_order_minus_2;
       StorageUnit m_order_monty_r1;
-
+      StorageUnit m_order_monty_r2;
+      StorageUnit m_order_monty_r3;
       word m_order_p_dash;
 };
 

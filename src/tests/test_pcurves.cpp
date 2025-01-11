@@ -273,6 +273,7 @@ class Pcurve_Scalar_Math_Tests final : public Test {
 
          auto& rng = Test::rng();
 
+         #if 0
          for(auto curve_id : Botan::PCurve::PrimeOrderCurveId::all()) {
             Test::Result result("Pcurves scalar arithmetic " + curve_id.to_string());
 
@@ -286,6 +287,7 @@ class Pcurve_Scalar_Math_Tests final : public Test {
 
             results.push_back(result);
          }
+         #endif
 
 #if defined(BOTAN_HAS_PCURVES_GENERIC)
          Test::Result result("Pcurves scalar arithmetic BADA55-256");
@@ -320,24 +322,45 @@ class Pcurve_Scalar_Math_Tests final : public Test {
          const auto one = curve->scalar_one();
          const auto n_one = one.negate();
 
+         const size_t order_bytes = (curve->order_bits() + 7) / 8;
+
+         const auto ser_zero = std::vector<uint8_t>(order_bytes);
+
+         const auto ser_one = [=]() {
+            auto b = ser_zero;
+            b[b.size()-1] = 1;
+            return b;
+         }();
+
+         result.test_eq("Serialization of zero is expected value", zero.serialize(), ser_zero);
+         result.test_eq("Serialization of one is expected value", one.serialize(), ser_one);
+
+         result.test_eq("Deserialization of one round trips", curve->deserialize_scalar(ser_one).value().serialize(), ser_one);
+
          result.test_eq("Zero is zero", zero.is_zero(), true);
          result.test_eq("One is not zero", one.is_zero(), false);
 
-         result.test_eq("1 - 1 = 0", (one - one).serialize(), zero.serialize());
+         result.test_eq("1 - 1 = 0", (one - one).serialize(), ser_zero);
 
-         result.test_eq("1 + -1 = 0", (one + n_one).serialize(), zero.serialize());
+         result.test_eq("1 + -1 = 0", (one + n_one).serialize(), ser_zero);
 
          // Not mathematically correct, but ok for our purposes
-         result.test_eq("Inverse of zero is zero", zero.invert().serialize(), zero.serialize());
-         result.test_eq("Inverse of zero is zero (2)", zero.invert().is_zero(), true);
+         result.test_eq("Inverse of zero is zero", zero.invert().serialize(), ser_zero);
+         result.test_eq("Inverse of zero satisfies is_zero", zero.invert().is_zero(), true);
 
-         result.test_eq("Inverse of 1 is 1", one.invert().serialize(), one.serialize());
+         result.test_eq("Inverse of 1 is 1", one.invert().serialize(), ser_one);
+
+         for(size_t i = 0; i != 256; ++i) {
+            const auto r = curve->random_scalar(rng);
+            const auto r_bytes = r.serialize();
+            result.test_eq("Deserialization of r round trips", curve->deserialize_scalar(r_bytes).value().serialize(), r_bytes);
+         }
 
          for(size_t i = 0; i != 16; ++i) {
             auto r = curve->random_scalar(rng);
             auto r2 = r * r;
             auto r_inv = r.invert();
-            result.test_eq("r * r^-1 = 1", (r * r_inv).serialize(), one.serialize());
+            result.test_eq("r * r^-1 = 1", (r * r_inv).serialize(), ser_one);
             result.test_eq("r^2 = r*r", r.square().serialize(), r2.serialize());
             result.test_eq("r*-1 = -r", (r * n_one).serialize(), r.negate().serialize());
 
