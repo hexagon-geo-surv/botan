@@ -129,7 +129,8 @@ class GenericPrimeOrderCurve final : public PrimeOrderCurve, public std::enable_
       StorageUnit m_order;
       StorageUnit m_order_minus_2;
       StorageUnit m_order_monty_r1;
-      /// ???
+
+      word m_order_p_dash;
 };
 
 }  // namespace Botan::PCurve

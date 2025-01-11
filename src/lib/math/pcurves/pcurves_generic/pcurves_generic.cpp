@@ -296,7 +296,7 @@ class GenericScalar final {
 
       static std::array<W, N> redc(GPOC curve, std::array<W, 2*N> z) {
          // if constexpr(IsField) ...
-         return curve->m_order_monty_r1;
+         return monty_redc(z, modulus(curve), p_dash(curve));
       }
 
       static std::array<W, N> from_rep(GPOC curve, std::array<W, N> z) {
@@ -318,6 +318,11 @@ class GenericScalar final {
       static const std::array<W, N>& modulus(GPOC curve) {
          // if constexpr(IsField) ...
          return curve->m_order;
+      }
+
+      static W p_dash(GPOC curve) {
+         // if constexpr(IsField) ...
+         return curve->m_order_p_dash;
       }
 
       static size_t modulus_bits(GPOC curve) {
@@ -365,7 +370,7 @@ GenericPrimeOrderCurve::GenericPrimeOrderCurve(
    BOTAN_ASSERT_NOMSG(m_scalar_bytes == m_fe_bytes);
    BOTAN_ASSERT_NOMSG(order.sig_words() == m_words);
 
-   m_monty_r1 = 
+   m_order_monty_r1 = 2**
    // TODO setup Montgomery R1,R2,R3
 }
 
