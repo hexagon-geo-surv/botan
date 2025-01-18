@@ -842,6 +842,17 @@ std::string Test::random_password(Botan::RandomNumberGenerator& rng) {
    return Botan::hex_encode(rng.random_vec(len));
 }
 
+size_t Test::random_index(Botan::RandomNumberGenerator& rng, size_t max) {
+   std::array<uint8_t, 8> v;
+   rng.randomize(v);
+
+   uint64_t x = 0;
+   for(size_t i = 0; i != v.size(); ++i) {
+      x = (x << 8) + v[i];
+   }
+   return static_cast<size_t>(x % max);
+}
+
 std::vector<std::vector<uint8_t>> VarMap::get_req_bin_list(const std::string& key) const {
    auto i = m_vars.find(key);
    if(i == m_vars.end()) {
