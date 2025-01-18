@@ -67,6 +67,19 @@ BOTAN_TEST_API
 void ct_divide_word(const BigInt& x, word y, BigInt& q, word& r);
 
 /**
+* BigInt word modulo, const time variant
+*
+* This runs with control flow independent of the values of x/y.
+* Warning: the loop bounds still leaks the size of x.
+*
+* @param x a positive integer
+* @param y a non-zero word
+* @return r the remainder of x divided by y
+*/
+BOTAN_TEST_API
+word ct_mod_word(const BigInt& x, word y);
+
+/**
 * BigInt modulo, const time variant
 *
 * Using this function is (slightly) cheaper than calling ct_divide and
