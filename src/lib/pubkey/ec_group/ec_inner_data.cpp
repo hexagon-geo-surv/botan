@@ -38,7 +38,7 @@ EC_Group_Data::EC_Group_Data(const BigInt& p,
       m_cofactor(cofactor),
 #if defined(BOTAN_HAS_LEGACY_EC_POINT)
       m_monty(m_p),
-      m_mod_order(order),
+      m_mod_order(Modular_Reducer::for_public_modulus(order)),
 #endif
       m_oid(oid),
       m_p_words(p.sig_words()),
