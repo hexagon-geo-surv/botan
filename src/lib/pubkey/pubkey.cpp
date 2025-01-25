@@ -242,29 +242,21 @@ SymmetricKey PK_Key_Agreement::derive_key(
    return SymmetricKey(m_op->agree(key_len, {peer_key, peer_key_len}, {salt, salt_len}));
 }
 
-namespace {
-
-void check_der_format_supported(Signature_Format format, size_t parts) {
-   if(format != Signature_Format::Standard && parts == 1) {
-      throw Invalid_Argument("This algorithm does not support DER encoding");
-   }
-}
-
-}  // namespace
-
 PK_Signer::PK_Signer(const Private_Key& key,
                      RandomNumberGenerator& rng,
                      std::string_view emsa,
                      Signature_Format format,
-                     std::string_view provider) {
+                     std::string_view provider) :
+      m_sig_format(format) {
+   if(m_sig_format == Signature_Format::DerSequence) {
+      m_sig_element_size = key._signature_element_size();
+      BOTAN_ARG_CHECK(m_sig_element_size.has_value(), "This key does not support DER signatures");
+   }
+
    m_op = key.create_signature_op(rng, emsa, provider);
    if(!m_op) {
       throw Invalid_Argument(fmt("Key type {} does not support signature generation", key.algo_name()));
    }
-   m_sig_format = format;
-   m_parts = key.message_parts();
-   m_part_size = key.message_part_size();
-   check_der_format_supported(format, m_parts);
 }
 
 AlgorithmIdentifier PK_Signer::algorithm_identifier() const {
@@ -315,7 +307,7 @@ size_t PK_Signer::signature_length() const {
    } else if(m_sig_format == Signature_Format::DerSequence) {
       // This is a large over-estimate but its easier than computing
       // the exact value
-      return m_op->signature_length() + (8 + 4 * m_parts);
+      return m_op->signature_length() + (8 + 4 * 2);
    } else {
       throw Internal_Error("PK_Signer: Invalid signature format enum");
    }
@@ -327,7 +319,8 @@ std::vector<uint8_t> PK_Signer::signature(RandomNumberGenerator& rng) {
    if(m_sig_format == Signature_Format::Standard) {
       return sig;
    } else if(m_sig_format == Signature_Format::DerSequence) {
-      return der_encode_signature(sig, m_parts, m_part_size);
+      BOTAN_ASSERT_NOMSG(m_sig_element_size.has_value());
+      return der_encode_signature(sig, 2, m_sig_element_size.value());
    } else {
       throw Internal_Error("PK_Signer: Invalid signature format enum");
    }
@@ -341,25 +334,25 @@ PK_Verifier::PK_Verifier(const Public_Key& key,
    if(!m_op) {
       throw Invalid_Argument(fmt("Key type {} does not support signature verification", key.algo_name()));
    }
+
    m_sig_format = format;
-   m_parts = key.message_parts();
-   m_part_size = key.message_part_size();
-   check_der_format_supported(format, m_parts);
+   m_sig_element_size = key._signature_element_size();
+
+   if(m_sig_format == Signature_Format::DerSequence) {
+      BOTAN_ARG_CHECK(m_sig_element_size.has_value(), "This key does not support DER signatures");
+   }
 }
 
 PK_Verifier::PK_Verifier(const Public_Key& key,
                          const AlgorithmIdentifier& signature_algorithm,
                          std::string_view provider) {
    m_op = key.create_x509_verification_op(signature_algorithm, provider);
-
    if(!m_op) {
       throw Invalid_Argument(fmt("Key type {} does not support X.509 signature verification", key.algo_name()));
    }
 
-   m_sig_format = key.default_x509_signature_format();
-   m_parts = key.message_parts();
-   m_part_size = key.message_part_size();
-   check_der_format_supported(m_sig_format, m_parts);
+   m_sig_format = key._default_x509_signature_format();
+   m_sig_element_size = key._signature_element_size();
 }
 
 PK_Verifier::~PK_Verifier() = default;
@@ -372,7 +365,9 @@ std::string PK_Verifier::hash_function() const {
 }
 
 void PK_Verifier::set_input_format(Signature_Format format) {
-   check_der_format_supported(format, m_parts);
+   if(format == Signature_Format::DerSequence) {
+      BOTAN_ARG_CHECK(m_sig_element_size.has_value(), "This key does not support DER signatures");
+   }
    m_sig_format = format;
 }
 
@@ -429,8 +424,10 @@ bool PK_Verifier::check_signature(const uint8_t sig[], size_t length) {
          bool decoding_success = false;
          std::vector<uint8_t> real_sig;
 
+         BOTAN_ASSERT_NOMSG(m_sig_element_size.has_value());
+
          try {
-            real_sig = decode_der_signature(sig, length, m_parts, m_part_size);
+            real_sig = decode_der_signature(sig, length, 2, m_sig_element_size.value());
             decoding_success = true;
          } catch(Decoding_Error&) {}
 

@@ -43,9 +43,7 @@ class BOTAN_PUBLIC_API(2, 0) DSA_PublicKey : public virtual Public_Key {
 
       std::string algo_name() const override { return "DSA"; }
 
-      size_t message_parts() const override { return 2; }
-
-      size_t message_part_size() const override;
+      std::optional<size_t> _signature_element_size() const override;
 
       AlgorithmIdentifier algorithm_identifier() const override;
 
