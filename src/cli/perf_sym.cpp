@@ -5,6 +5,8 @@
 */
 
 #include "perf.h"
+
+#include <botan/assert.h>
 #include <set>
 
 #if defined(BOTAN_HAS_BLOCK_CIPHER)

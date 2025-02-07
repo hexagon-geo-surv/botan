@@ -6,6 +6,14 @@
 
 #include <memory>
 
+template <typename T>
+constexpr void unused(T&&) {}
+
+template <typename... T>
+constexpr void unused(T&&... args) {
+   (unused(args), ...);
+}
+
 /**
  * @brief Callbacks invoked by TLS::Channel.
  *
@@ -17,18 +25,18 @@ class Callbacks : public Botan::TLS::Callbacks {
    public:
       void tls_emit_data(std::span<const uint8_t> data) override {
          // send data to tls client, e.g., using BSD sockets or boost asio
-         BOTAN_UNUSED(data);
+         unused(data);
       }
 
       void tls_record_received(uint64_t seq_no, std::span<const uint8_t> data) override {
          // process full TLS record received by tls client, e.g.,
          // by passing it to the application
-         BOTAN_UNUSED(seq_no, data);
+         unused(seq_no, data);
       }
 
       void tls_alert(Botan::TLS::Alert alert) override {
          // handle a tls alert received from the tls server
-         BOTAN_UNUSED(alert);
+         unused(alert);
       }
 };
 
@@ -49,7 +57,7 @@ class Server_Credentials : public Botan::Credentials_Manager {
 
       std::vector<Botan::Certificate_Store*> trusted_certificate_authorities(const std::string& type,
                                                                              const std::string& context) override {
-         BOTAN_UNUSED(type, context);
+         unused(type, context);
          // if client authentication is required, this function
          // shall return a list of certificates of CAs we trust
          // for tls client certificates, otherwise return an empty list
@@ -61,7 +69,7 @@ class Server_Credentials : public Botan::Credentials_Manager {
          const std::vector<Botan::AlgorithmIdentifier>& cert_signature_schemes,
          const std::string& type,
          const std::string& context) override {
-         BOTAN_UNUSED(cert_key_types, cert_signature_schemes, type, context);
+         unused(cert_key_types, cert_signature_schemes, type, context);
 
          // return the certificate chain being sent to the tls client
          // e.g., the certificate file "botan.randombit.net.crt"
@@ -71,7 +79,7 @@ class Server_Credentials : public Botan::Credentials_Manager {
       std::shared_ptr<Botan::Private_Key> private_key_for(const Botan::X509_Certificate& cert,
                                                           const std::string& type,
                                                           const std::string& context) override {
-         BOTAN_UNUSED(cert, type, context);
+         unused(cert, type, context);
          // return the private key associated with the leaf certificate,
          // in this case the one associated with "botan.randombit.net.crt"
          return m_key;
