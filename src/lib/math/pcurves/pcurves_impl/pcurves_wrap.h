@@ -10,6 +10,10 @@
 #include <botan/internal/pcurves.h>
 #include <botan/internal/pcurves_impl.h>
 
+#if defined(BOTAN_HAS_XMD)
+   #include <botan/internal/xmd.h>
+#endif
+
 namespace Botan::PCurve {
 
 template <typename C>
@@ -249,24 +253,20 @@ class PrimeOrderCurveImpl final : public PrimeOrderCurve {
          }
       }
 
-      AffinePoint hash_to_curve_nu(std::string_view hash,
-                                   std::span<const uint8_t> input,
-                                   std::span<const uint8_t> domain_sep) const override {
+      AffinePoint hash_to_curve_nu(std::function<void(std::span<uint8_t>)> expand_message) const override {
          if constexpr(C::ValidForSswuHash) {
-            return stash(hash_to_curve_sswu<C, false>(hash, input, domain_sep));
-         } else {
-            throw Not_Implemented("Hash to curve is not implemented for this curve");
+            return stash(hash_to_curve_sswu<C, false>(expand_message));
          }
+
+         throw Not_Implemented("Hash to curve is not implemented for this curve");
       }
 
-      ProjectivePoint hash_to_curve_ro(std::string_view hash,
-                                       std::span<const uint8_t> input,
-                                       std::span<const uint8_t> domain_sep) const override {
+      ProjectivePoint hash_to_curve_ro(std::function<void(std::span<uint8_t>)> expand_message) const override {
          if constexpr(C::ValidForSswuHash) {
-            return stash(hash_to_curve_sswu<C, true>(hash, input, domain_sep));
-         } else {
-            throw Not_Implemented("Hash to curve is not implemented for this curve");
+            return stash(hash_to_curve_sswu<C, true>(expand_message));
          }
+
+         throw Not_Implemented("Hash to curve is not implemented for this curve");
       }
 
       Scalar scalar_add(const Scalar& a, const Scalar& b) const override {

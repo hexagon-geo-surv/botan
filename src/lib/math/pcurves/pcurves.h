@@ -13,10 +13,10 @@
 #include <botan/secmem.h>
 #include <botan/types.h>
 #include <array>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string_view>
-#include <vector>
 
 namespace Botan {
 
@@ -310,18 +310,14 @@ class PrimeOrderCurve {
       *
       * This is currently only supported for a few specific curves
       */
-      virtual AffinePoint hash_to_curve_nu(std::string_view hash,
-                                           std::span<const uint8_t> input,
-                                           std::span<const uint8_t> domain_sep) const = 0;
+      virtual AffinePoint hash_to_curve_nu(std::function<void(std::span<uint8_t>)> expand_message) const = 0;
 
       /**
       * RFC 9380 hash to curve (RO variant)
       *
       * This is currently only supported for a few specific curves
       */
-      virtual ProjectivePoint hash_to_curve_ro(std::string_view hash,
-                                               std::span<const uint8_t> input,
-                                               std::span<const uint8_t> domain_sep) const = 0;
+      virtual ProjectivePoint hash_to_curve_ro(std::function<void(std::span<uint8_t>)> expand_message) const = 0;
 };
 
 }  // namespace Botan::PCurve
