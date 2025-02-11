@@ -10,6 +10,7 @@
 #include <botan/rng.h>
 #include <botan/internal/ct_utils.h>
 #include <botan/internal/loadstor.h>
+#include <botan/internal/pcurves_algos.h>
 #include <botan/internal/pcurves_util.h>
 #include <botan/internal/stl_util.h>
 #include <vector>
@@ -1183,69 +1184,12 @@ class ProjectiveCurvePoint {
       * Iterated point doubling
       */
       constexpr Self dbl_n(size_t n) const {
-         /*
-         Repeated doubling using an adaptation of Algorithm 3.23 in
-         "Guide To Elliptic Curve Cryptography" (Hankerson, Menezes, Vanstone)
-
-         Curiously the book gives the algorithm only for A == -3, but
-         the largest gains come from applying it to the generic A case,
-         where it saves 2 squarings per iteration.
-
-         For A == 0
-           Pay 1*2 + 1half to save n*(1*4 + 1*8)
-
-         For A == -3:
-           Pay 2S + 1*2 + 1half to save n*(1A + 1*4 + 1*8) + 1M
-
-         For generic A:
-           Pay 2S + 1*2 + 1half to save n*(2S + 1*4 + 1*8)
-         */
-
-         if constexpr(Self::A_is_zero) {
-            auto nx = x();
-            auto ny = y().mul2();
-            auto nz = z();
-
-            while(n > 0) {
-               const auto ny2 = ny.square();
-               const auto ny4 = ny2.square();
-               const auto t1 = nx.square().mul3();
-               const auto t2 = nx * ny2;
-               nx = t1.square() - t2.mul2();
-               nz *= ny;
-               ny = t1 * (t2 - nx).mul2() - ny4;
-               n--;
-            }
-            return Self(nx, ny.div2(), nz);
+         if constexpr(Self::A_is_minus_3) {
+            return dbl_n_a_minus_3(*this, n);
+         } else if constexpr(Self::A_is_zero) {
+            return dbl_n_a_zero(*this, n);
          } else {
-            auto nx = x();
-            auto ny = y().mul2();
-            auto nz = z();
-            auto w = nz.square().square();
-
-            if constexpr(!Self::A_is_minus_3) {
-               w *= A;
-            }
-
-            while(n > 0) {
-               const auto ny2 = ny.square();
-               const auto ny4 = ny2.square();
-               FieldElement t1;
-               if constexpr(Self::A_is_minus_3) {
-                  t1 = (nx.square() - w).mul3();
-               } else {
-                  t1 = nx.square().mul3() + w;
-               }
-               const auto t2 = nx * ny2;
-               nx = t1.square() - t2.mul2();
-               nz *= ny;
-               ny = t1 * (t2 - nx).mul2() - ny4;
-               n--;
-               if(n > 0) {
-                  w *= ny4;
-               }
-            }
-            return Self(nx, ny.div2(), nz);
+            return dbl_n_generic(*this, A, n);
          }
       }
 
@@ -1253,43 +1197,13 @@ class ProjectiveCurvePoint {
       * Point doubling
       */
       constexpr Self dbl() const {
-         /*
-         Using https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-1998-cmo-2
-
-         Cost (generic A): 4M + 6S + 4A + 2*2 + 1*3 + 1*4 + 1*8
-         Cost (A == -3):   4M + 4S + 5A + 2*2 + 1*3 + 1*4 + 1*8
-         Cost (A == 0):    3M + 4S + 3A + 2*2 + 1*3 + 1*4 + 1*8
-         */
-
-         FieldElement m = FieldElement::zero();
-
          if constexpr(Self::A_is_minus_3) {
-            /*
-            if a == -3 then
-            3*x^2 + a*z^4 == 3*x^2 - 3*z^4 == 3*(x^2-z^4) == 3*(x-z^2)*(x+z^2)
-
-            Cost: 1M + 1S + 2A + 1*3
-            */
-            const auto z2 = z().square();
-            m = (x() - z2).mul3() * (x() + z2);
+            return dbl_a_minus_3(*this);
          } else if constexpr(Self::A_is_zero) {
-            // If a == 0 then 3*x^2 + a*z^4 == 3*x^2
-            // Cost: 1S + 1*3
-            m = x().square().mul3();
+            return dbl_a_zero(*this);
          } else {
-            // Cost: 1M + 3S + 1A + 1*3
-            const auto z2 = z().square();
-            m = x().square().mul3() + A * z2.square();
+            return dbl_generic(*this, A);
          }
-
-         // Remaining cost: 3M + 3S + 3A + 2*2 + 1*4 + 1*8
-         const auto y2 = y().square();
-         const auto s = x().mul4() * y2;
-         const auto nx = m.square() - s.mul2();
-         const auto ny = m * (s - nx) - y2.square().mul8();
-         const auto nz = y().mul2() * z();
-
-         return Self(nx, ny, nz);
       }
 
       /**
@@ -1428,129 +1342,6 @@ class EllipticCurve {
 
       static constexpr bool OrderIsLessThanField = bigint_cmp(NW.data(), NW.size(), PW.data(), PW.size()) == -1;
 };
-
-/**
-* Field inversion concept
-*
-* This concept checks if the FieldElement supports fe_invert2
-*/
-template <typename C>
-concept curve_supports_fe_invert2 = requires(const typename C::FieldElement& fe) {
-   { C::fe_invert2(fe) } -> std::same_as<typename C::FieldElement>;
-};
-
-/**
-* Field inversion
-*
-* Uses the specialized fe_invert2 if available, or otherwise the standard
-* (FLT-based) field inversion.
-*/
-template <typename C>
-inline constexpr auto invert_field_element(const typename C::FieldElement& fe) {
-   if constexpr(curve_supports_fe_invert2<C>) {
-      return C::fe_invert2(fe) * fe;
-   } else {
-      return fe.invert();
-   }
-}
-
-/**
-* Convert a projective point into affine
-*/
-template <typename C>
-auto to_affine(const typename C::ProjectivePoint& pt) {
-   // Not strictly required right? - default should work as long
-   // as (0,0) is identity and invert returns 0 on 0
-   if(pt.is_identity().as_bool()) {
-      return C::AffinePoint::identity();
-   }
-
-   if constexpr(curve_supports_fe_invert2<C>) {
-      const auto z2_inv = C::fe_invert2(pt.z());
-      const auto z3_inv = z2_inv.square() * pt.z();
-      return typename C::AffinePoint(pt.x() * z2_inv, pt.y() * z3_inv);
-   } else {
-      const auto z_inv = invert_field_element<C>(pt.z());
-      const auto z2_inv = z_inv.square();
-      const auto z3_inv = z_inv * z2_inv;
-      return typename C::AffinePoint(pt.x() * z2_inv, pt.y() * z3_inv);
-   }
-}
-
-/**
-* Convert a projective point into affine and return x coordinate only
-*/
-template <typename C>
-auto to_affine_x(const typename C::ProjectivePoint& pt) {
-   if constexpr(curve_supports_fe_invert2<C>) {
-      return pt.x() * C::fe_invert2(pt.z());
-   } else {
-      const auto z_inv = invert_field_element<C>(pt.z());
-      const auto z2_inv = z_inv.square();
-      return pt.x() * z2_inv;
-   }
-}
-
-/**
-* Batch projective->affine conversion
-*/
-template <typename C>
-auto to_affine_batch(std::span<const typename C::ProjectivePoint> projective) {
-   typedef typename C::AffinePoint AffinePoint;
-   typedef typename C::FieldElement FieldElement;
-
-   const size_t N = projective.size();
-   std::vector<AffinePoint> affine(N, AffinePoint::identity());
-
-   CT::Choice any_identity = CT::Choice::no();
-
-   for(const auto& pt : projective) {
-      any_identity = any_identity || pt.is_identity();
-   }
-
-   if(N <= 2 || any_identity.as_bool()) {
-      // If there are identity elements, using the batch inversion gets
-      // tricky. It can be done, but this should be a rare situation so
-      // just punt to the serial conversion if it occurs
-      for(size_t i = 0; i != N; ++i) {
-         affine[i] = to_affine<C>(projective[i]);
-      }
-   } else {
-      std::vector<FieldElement> c(N);
-
-      /*
-      Batch projective->affine using Montgomery's trick
-
-      See Algorithm 2.26 in "Guide to Elliptic Curve Cryptography"
-      (Hankerson, Menezes, Vanstone)
-      */
-
-      c[0] = projective[0].z();
-      for(size_t i = 1; i != N; ++i) {
-         c[i] = c[i - 1] * projective[i].z();
-      }
-
-      auto s_inv = invert_field_element<C>(c[N - 1]);
-
-      for(size_t i = N - 1; i > 0; --i) {
-         const auto& p = projective[i];
-
-         const auto z_inv = s_inv * c[i - 1];
-         const auto z2_inv = z_inv.square();
-         const auto z3_inv = z_inv * z2_inv;
-
-         s_inv = s_inv * p.z();
-
-         affine[i] = AffinePoint(p.x() * z2_inv, p.y() * z3_inv);
-      }
-
-      const auto z2_inv = s_inv.square();
-      const auto z3_inv = s_inv * z2_inv;
-      affine[0] = AffinePoint(projective[0].x() * z2_inv, projective[0].y() * z3_inv);
-   }
-
-   return affine;
-}
 
 /**
 * Blinded Scalar

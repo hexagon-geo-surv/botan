@@ -12,6 +12,7 @@
 #include <botan/internal/ct_utils.h>
 #include <botan/internal/loadstor.h>
 #include <botan/internal/mp_core.h>
+#include <botan/internal/pcurves_algos.h>
 #include <botan/internal/pcurves_instance.h>
 #include <botan/internal/primality.h>
 #include <algorithm>
@@ -894,44 +895,27 @@ class GenericAffinePoint final {
                                                            std::span<const uint8_t> bytes) {
          const size_t fe_bytes = curve->_params().field_bytes();
 
-         if(bytes.size() == 1 + 2 * fe_bytes) {
-            if(bytes[0] == 0x04) {
-               auto x = GenericField::deserialize(curve, bytes.subspan(1, fe_bytes));
-               auto y = GenericField::deserialize(curve, bytes.subspan(1 + fe_bytes, fe_bytes));
+         if(bytes.size() == 1 + 2 * fe_bytes && bytes[0] == 0x04) {
+            auto x = GenericField::deserialize(curve, bytes.subspan(1, fe_bytes));
+            auto y = GenericField::deserialize(curve, bytes.subspan(1 + fe_bytes, fe_bytes));
 
-               if(x && y) {
-                  const auto lhs = (*y).square();
-                  const auto rhs = GenericAffinePoint::x3_ax_b(*x);
-                  if((lhs == rhs).as_bool()) {
-                     return GenericAffinePoint(*x, *y);
-                  }
-               }
-            } else if(bytes[0] == 0x06 || bytes[0] == 0x07) {
-               // Deprecated "hybrid" encoding
-               const CT::Choice y_is_even = CT::Mask<uint8_t>::is_equal(bytes[0], 0x06).as_choice();
-               auto x = GenericField::deserialize(curve, bytes.subspan(1, fe_bytes));
-               auto y = GenericField::deserialize(curve, bytes.subspan(1 + fe_bytes, fe_bytes));
-
-               if(x && y && (y_is_even == y->is_even()).as_bool()) {
-                  const auto lhs = (*y).square();
-                  const auto rhs = GenericAffinePoint::x3_ax_b(*x);
-                  if((lhs == rhs).as_bool()) {
-                     return GenericAffinePoint(*x, *y);
-                  }
+            if(x && y) {
+               const auto lhs = (*y).square();
+               const auto rhs = GenericAffinePoint::x3_ax_b(*x);
+               if((lhs == rhs).as_bool()) {
+                  return GenericAffinePoint(*x, *y);
                }
             }
-         } else if(bytes.size() == 1 + fe_bytes) {
-            if(bytes[0] == 0x02 || bytes[0] == 0x03) {
-               const CT::Choice y_is_even = CT::Mask<uint8_t>::is_equal(bytes[0], 0x02).as_choice();
+         } else if(bytes.size() == 1 + fe_bytes && (bytes[0] == 0x02 || bytes[0] == 0x03)) {
+            const CT::Choice y_is_even = CT::Mask<uint8_t>::is_equal(bytes[0], 0x02).as_choice();
 
-               if(auto x = GenericField::deserialize(curve, bytes.subspan(1, fe_bytes))) {
-                  auto [y, is_square] = x3_ax_b(*x).sqrt();
+            if(auto x = GenericField::deserialize(curve, bytes.subspan(1, fe_bytes))) {
+               auto [y, is_square] = x3_ax_b(*x).sqrt();
 
-                  if(is_square.as_bool()) {
-                     const auto flip_y = y_is_even != y.is_even();
-                     GenericField::conditional_assign(y, flip_y, y.negate());
-                     return GenericAffinePoint(*x, y);
-                  }
+               if(is_square.as_bool()) {
+                  const auto flip_y = y_is_even != y.is_even();
+                  GenericField::conditional_assign(y, flip_y, y.negate());
+                  return GenericAffinePoint(*x, y);
                }
             }
          } else if(bytes.size() == 1 && bytes[0] == 0x00) {
@@ -1139,60 +1123,13 @@ class GenericProjectivePoint final {
       * Iterated point doubling
       */
       Self dbl_n(size_t n) const {
-         /*
-         Repeated doubling using an adaptation of Algorithm 3.23 in
-         "Guide To Elliptic Curve Cryptography" (Hankerson, Menezes, Vanstone)
-
-         Curiously the book gives the algorithm only for A == -3, but
-         the largest gains come from applying it to the generic A case,
-         where it saves 2 squarings per iteration.
-
-         For A == 0
-           Pay 1*2 + 1half to save n*(1*4 + 1*8)
-
-         For A == -3:
-           Pay 2S + 1*2 + 1half to save n*(1A + 1*4 + 1*8) + 1M
-
-         For generic A:
-           Pay 2S + 1*2 + 1half to save n*(2S + 1*4 + 1*8)
-         */
-
-         if(curve()->_params().a_is_zero()) {
-            auto nx = x();
-            auto ny = y().mul2();
-            auto nz = z();
-
-            while(n > 0) {
-               const auto ny2 = ny.square();
-               const auto ny4 = ny2.square();
-               const auto t1 = nx.square().mul3();
-               const auto t2 = nx * ny2;
-               nx = t1.square() - t2.mul2();
-               nz *= ny;
-               ny = t1 * (t2 - nx).mul2() - ny4;
-               n--;
-            }
-            return Self(nx, ny.div2(), nz);
+         if(curve()->_params().a_is_minus_3()) {
+            return dbl_n_a_minus_3(*this, n);
+         } else if(curve()->_params().a_is_zero()) {
+            return dbl_n_a_zero(*this, n);
          } else {
-            auto nx = x();
-            auto ny = y().mul2();
-            auto nz = z();
-            auto w = nz.square().square() * GenericField::curve_a(curve());
-
-            while(n > 0) {
-               const auto ny2 = ny.square();
-               const auto ny4 = ny2.square();
-               GenericField t1 = nx.square().mul3() + w;
-               const auto t2 = nx * ny2;
-               nx = t1.square() - t2.mul2();
-               nz *= ny;
-               ny = t1 * (t2 - nx).mul2() - ny4;
-               n--;
-               if(n > 0) {
-                  w *= ny4;
-               }
-            }
-            return Self(nx, ny.div2(), nz);
+            const auto A = GenericField::curve_a(curve());
+            return dbl_n_generic(*this, A, n);
          }
       }
 
@@ -1200,43 +1137,14 @@ class GenericProjectivePoint final {
       * Point doubling
       */
       Self dbl() const {
-         /*
-         Using https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-1998-cmo-2
-
-         Cost (generic A): 4M + 6S + 4A + 2*2 + 1*3 + 1*4 + 1*8
-         Cost (A == -3):   4M + 4S + 5A + 2*2 + 1*3 + 1*4 + 1*8
-         Cost (A == 0):    3M + 4S + 3A + 2*2 + 1*3 + 1*4 + 1*8
-         */
-
-         GenericField m = [&]() {
-            if(curve()->_params().a_is_minus_3()) {
-               /*
-               if a == -3 then
-               3*x^2 + a*z^4 == 3*x^2 - 3*z^4 == 3*(x^2-z^4) == 3*(x-z^2)*(x+z^2)
-
-               Cost: 1M + 1S + 2A + 1*3
-               */
-               const auto z2 = z().square();
-               return (x() - z2).mul3() * (x() + z2);
-            } else if(curve()->_params().a_is_zero()) {
-               // If a == 0 then 3*x^2 + a*z^4 == 3*x^2
-               // Cost: 1S + 1*3
-               return x().square().mul3();
-            } else {
-               // Cost: 1M + 3S + 1A + 1*3
-               const auto z2 = z().square();
-               return x().square().mul3() + GenericField::curve_a(curve()) * z2.square();
-            }
-         }();
-
-         // Remaining cost: 3M + 3S + 3A + 2*2 + 1*4 + 1*8
-         const auto y2 = y().square();
-         const auto s = x().mul4() * y2;
-         const auto nx = m.square() - s.mul2();
-         const auto ny = m * (s - nx) - y2.square().mul8();
-         const auto nz = y().mul2() * z();
-
-         return Self(nx, ny, nz);
+         if(curve()->_params().a_is_minus_3()) {
+            return dbl_a_minus_3(*this);
+         } else if(curve()->_params().a_is_zero()) {
+            return dbl_a_zero(*this);
+         } else {
+            const auto A = GenericField::curve_a(curve());
+            return dbl_generic(*this, A);
+         }
       }
 
       /**
@@ -1266,73 +1174,6 @@ class GenericProjectivePoint final {
          }
       }
 
-      GenericAffinePoint to_affine() const {
-         if(is_identity().as_bool()) {
-            return GenericAffinePoint::identity(curve());
-         }
-
-         const auto z_inv = z().invert();
-         const auto z2_inv = z_inv.square();
-         const auto z3_inv = z_inv * z2_inv;
-         return GenericAffinePoint(x() * z2_inv, y() * z3_inv);
-      }
-
-      static std::vector<GenericAffinePoint> to_affine_batch(std::span<GenericProjectivePoint> projective) {
-         const size_t N = projective.size();
-
-         CT::Choice any_identity = CT::Choice::no();
-
-         for(const auto& pt : projective) {
-            any_identity = any_identity || pt.is_identity();
-         }
-
-         if(N <= 2 || any_identity.as_bool()) {
-            // If there are identity elements, using the batch inversion gets
-            // tricky. It can be done, but this should be a rare situation so
-            // just punt to the serial conversion if it occurs
-            std::vector<GenericAffinePoint> affine;
-            for(size_t i = 0; i != N; ++i) {
-               affine.push_back(projective[i].to_affine());
-            }
-            return affine;
-         } else {
-            std::vector<GenericField> c;
-
-            /*
-            Batch projective->affine using Montgomery's trick
-
-            See Algorithm 2.26 in "Guide to Elliptic Curve Cryptography"
-            (Hankerson, Menezes, Vanstone)
-            */
-
-            c.push_back(projective[0].z());
-            for(size_t i = 1; i != N; ++i) {
-               c.push_back(c[i - 1] * projective[i].z());
-            }
-
-            auto s_inv = c[N - 1].invert();
-
-            std::vector<GenericAffinePoint> affine;
-            for(size_t i = N - 1; i > 0; --i) {
-               const auto& p = projective[i];
-
-               const auto z_inv = s_inv * c[i - 1];
-               const auto z2_inv = z_inv.square();
-               const auto z3_inv = z_inv * z2_inv;
-
-               s_inv = s_inv * p.z();
-
-               affine.push_back(GenericAffinePoint(p.x() * z2_inv, p.y() * z3_inv));
-            }
-
-            const auto z2_inv = s_inv.square();
-            const auto z3_inv = s_inv * z2_inv;
-            affine.push_back(GenericAffinePoint(projective[0].x() * z2_inv, projective[0].y() * z3_inv));
-            std::reverse(affine.begin(), affine.end());
-            return affine;
-         }
-      }
-
       /**
       * Return the projective x coordinate
       */
@@ -1358,6 +1199,14 @@ class GenericProjectivePoint final {
       GenericField m_x;
       GenericField m_y;
       GenericField m_z;
+};
+
+class GenericCurve final {
+   public:
+      typedef GenericField FieldElement;
+      typedef GenericScalar Scalar;
+      typedef GenericAffinePoint AffinePoint;
+      typedef GenericProjectivePoint ProjectivePoint;
 };
 
 class GenericBlindedScalarBits final {
@@ -1452,7 +1301,7 @@ class GenericWindowedMul final {
             }
          }
 
-         m_table = GenericProjectivePoint::to_affine_batch(table);
+         m_table = to_affine_batch<GenericCurve>(table);
       }
 
       GenericProjectivePoint mul(const GenericScalar& s, RandomNumberGenerator& rng) {
@@ -1521,7 +1370,7 @@ class GenericBaseMulTable final {
             accum = table[i + (WindowElements / 2)].dbl();
          }
 
-         m_table = GenericProjectivePoint::to_affine_batch(table);
+         m_table = to_affine_batch<GenericCurve>(table);
       }
 
       GenericProjectivePoint mul(const GenericScalar& s, RandomNumberGenerator& rng) {
@@ -1621,7 +1470,7 @@ class GenericWindowedMul2 final : public PrimeOrderCurve::PrecomputedMul2Table {
             table.emplace_back(next_tbl_e());
          }
 
-         m_table = GenericProjectivePoint::to_affine_batch(table);
+         m_table = to_affine_batch<GenericCurve>(table);
       }
 
       GenericProjectivePoint mul2_vartime(const GenericScalar& x, const GenericScalar& y) const {
@@ -1689,7 +1538,7 @@ PrimeOrderCurve::Scalar GenericPrimeOrderCurve::base_point_mul_x_mod_order(const
    BOTAN_STATE_CHECK(m_basemul != nullptr);
    auto pt_s = m_basemul->mul(from_stash(scalar), rng);
    secure_vector<uint8_t> x_bytes(_params().field_bytes());
-   pt_s.to_affine().x().serialize_to(x_bytes);
+   to_affine_x<GenericCurve>(pt_s).serialize_to(x_bytes);
    return stash(GenericScalar::from_wide_bytes(this, x_bytes).value());
 }
 
@@ -1706,7 +1555,7 @@ secure_vector<uint8_t> GenericPrimeOrderCurve::mul_x_only(const AffinePoint& pt,
    GenericWindowedMul pt_table(from_stash(pt), 4);
    auto pt_s = pt_table.mul(from_stash(scalar), rng);
    secure_vector<uint8_t> x_bytes(_params().field_bytes());
-   pt_s.to_affine().x().serialize_to(x_bytes);
+   to_affine_x<GenericCurve>(pt_s).serialize_to(x_bytes);
    return x_bytes;
 }
 
@@ -1785,7 +1634,7 @@ PrimeOrderCurve::AffinePoint GenericPrimeOrderCurve::generator() const {
 }
 
 PrimeOrderCurve::AffinePoint GenericPrimeOrderCurve::point_to_affine(const ProjectivePoint& pt) const {
-   return stash(from_stash(pt).to_affine());
+   return stash(to_affine<GenericCurve>(from_stash(pt)));
 }
 
 PrimeOrderCurve::ProjectivePoint GenericPrimeOrderCurve::point_to_projective(const AffinePoint& pt) const {
