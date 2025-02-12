@@ -14,6 +14,7 @@
 #include <botan/internal/mp_core.h>
 #include <botan/internal/pcurves_algos.h>
 #include <botan/internal/pcurves_instance.h>
+#include <botan/internal/pcurves_mul.h>
 #include <botan/internal/primality.h>
 #include <algorithm>
 
@@ -1207,13 +1208,16 @@ class GenericCurve final {
       typedef GenericScalar Scalar;
       typedef GenericAffinePoint AffinePoint;
       typedef GenericProjectivePoint ProjectivePoint;
+
+      typedef word WordType;
+      static constexpr size_t Words = PCurve::PrimeOrderCurve::StorageWords;
 };
 
 class GenericBlindedScalarBits final {
    public:
       GenericBlindedScalarBits(const GenericScalar& scalar, RandomNumberGenerator& rng, size_t wb) {
          // Just a simplifying assumption for get_window, can extend to 1..7 as required
-         BOTAN_ASSERT_NOMSG(wb == 4 || wb == 5);
+         BOTAN_ASSERT_NOMSG(wb == 3 || wb == 4 || wb == 5);
 
          const auto& params = scalar.curve()->_params();
 
@@ -1252,14 +1256,19 @@ class GenericBlindedScalarBits final {
 
          std::reverse(mask_n.begin(), mask_n.end());
          m_bytes = store_be<std::vector<uint8_t>>(mask_n);
+         m_bits = order_bits + blinder_bits;
          m_window_bits = wb;
          m_windows = (order_bits + blinder_bits + wb - 1) / wb;
       }
 
       size_t windows() const { return m_windows; }
 
+      size_t bits() const { return m_bits; }
+
       size_t get_window(size_t offset) const {
-         if(m_window_bits == 4) {
+         if(m_window_bits == 3) {
+            return read_window_bits<3>(std::span{m_bytes}, offset);
+         } else if(m_window_bits == 4) {
             return read_window_bits<4>(std::span{m_bytes}, offset);
          } else if(m_window_bits == 5) {
             return read_window_bits<5>(std::span{m_bytes}, offset);
@@ -1279,63 +1288,26 @@ class GenericBlindedScalarBits final {
 
    private:
       std::vector<uint8_t> m_bytes;
+      size_t m_bits;
       size_t m_windows;
       size_t m_window_bits;
 };
 
 class GenericWindowedMul final {
    public:
-      GenericWindowedMul(const GenericAffinePoint& pt, size_t window_bits) : m_window_bits(window_bits) {
-         BOTAN_ARG_CHECK(window_bits == 4 || window_bits == 5, "Invalid window_bits");
+      static constexpr size_t WindowBits = 3;
+      static constexpr size_t TableSize = (1 << WindowBits) - 1;
 
-         const size_t table_size = (1 << window_bits) - 1;
-
-         std::vector<GenericProjectivePoint> table;
-         table.push_back(GenericProjectivePoint::from_affine(pt));
-
-         for(size_t i = 1; i != table_size; ++i) {
-            if(i % 2 == 1) {
-               table.push_back(table[i / 2].dbl());
-            } else {
-               table.push_back(table[i - 1] + pt);
-            }
-         }
-
-         m_table = to_affine_batch<GenericCurve>(table);
-      }
+      GenericWindowedMul(const GenericAffinePoint& pt) : m_table(varpoint_setup<GenericCurve, TableSize>(pt)) {}
 
       GenericProjectivePoint mul(const GenericScalar& s, RandomNumberGenerator& rng) {
-         GenericBlindedScalarBits bits(s, rng, m_window_bits);
+         GenericBlindedScalarBits bits(s, rng, WindowBits);
 
-         const size_t windows = bits.windows();
-
-         auto accum = [&]() {
-            const size_t w_0 = bits.get_window((windows - 1) * m_window_bits);
-            // Guaranteed because we set the high bit of the randomizer
-            BOTAN_DEBUG_ASSERT(w_0 != 0);
-            auto pt = GenericProjectivePoint::from_affine(GenericAffinePoint::ct_select(m_table, w_0));
-            CT::poison(pt);
-            pt.randomize_rep(rng);
-            return pt;
-         }();
-
-         for(size_t i = 1; i != windows; ++i) {
-            accum = accum.dbl_n(m_window_bits);
-            auto w_i = bits.get_window((windows - i - 1) * m_window_bits);
-            accum += GenericAffinePoint::ct_select(m_table, w_i);
-
-            if(i <= 3) {
-               accum.randomize_rep(rng);
-            }
-         }
-
-         CT::unpoison(accum);
-         return accum;
+         return varpoint_exec<GenericCurve, WindowBits>(m_table, bits, rng);
       }
 
    private:
       std::vector<GenericAffinePoint> m_table;
-      size_t m_window_bits;
 };
 
 class GenericBaseMulTable final {
@@ -1348,58 +1320,12 @@ class GenericBaseMulTable final {
          const size_t order_bits = pt.curve()->order_bits();
          const size_t blinded_scalar_bits = order_bits + GenericBlindedScalarBits::blinding_bits(order_bits);
 
-         const size_t windows = (blinded_scalar_bits + WindowBits - 1) / WindowBits;
-         const size_t table_size = windows * WindowElements;
-
-         std::vector<GenericProjectivePoint> table;
-         table.reserve(table_size);
-
-         auto accum = GenericProjectivePoint::from_affine(pt);
-
-         for(size_t i = 0; i != table_size; i += WindowElements) {
-            table.push_back(accum);
-
-            for(size_t j = 1; j != WindowElements; ++j) {
-               if(j % 2 == 1) {
-                  table.emplace_back(table[i + j / 2].dbl());
-               } else {
-                  table.emplace_back(table[i + j - 1] + table[i]);
-               }
-            }
-
-            accum = table[i + (WindowElements / 2)].dbl();
-         }
-
-         m_table = to_affine_batch<GenericCurve>(table);
+         m_table = basemul_setup<GenericCurve, WindowBits>(pt, blinded_scalar_bits);
       }
 
       GenericProjectivePoint mul(const GenericScalar& s, RandomNumberGenerator& rng) {
-         GenericBlindedScalarBits bits(s, rng, WindowBits);
-
-         // TODO: C++23 - use std::mdspan to access m_table
-         auto table = std::span{m_table};
-
-         auto accum = [&]() {
-            const size_t w_0 = bits.get_window(0);
-            const auto tbl_0 = table.first(WindowElements);
-            auto pt = GenericProjectivePoint::from_affine(GenericAffinePoint::ct_select(tbl_0, w_0));
-            CT::poison(pt);
-            pt.randomize_rep(rng);
-            return pt;
-         }();
-
-         for(size_t i = 1; i != bits.windows(); ++i) {
-            const size_t w_i = bits.get_window(WindowBits * i);
-            const auto tbl_i = table.subspan(WindowElements * i, WindowElements);
-            accum += GenericAffinePoint::ct_select(tbl_i, w_i);
-
-            if(i <= 3) {
-               accum.randomize_rep(rng);
-            }
-         }
-
-         CT::unpoison(accum);
-         return accum;
+         GenericBlindedScalarBits scalar(s, rng, WindowBits);
+         return basemul_exec<GenericCurve, WindowBits>(m_table, scalar, rng);
       }
 
    private:
@@ -1410,11 +1336,6 @@ class GenericWindowedMul2 final : public PrimeOrderCurve::PrecomputedMul2Table {
    public:
       static constexpr size_t WindowBits = 3;
 
-      static constexpr size_t WindowSize = (1 << WindowBits);
-
-      // 2^(2*W) elements, less the identity element
-      static constexpr size_t TableSize = (1 << (2 * WindowBits)) - 1;
-
       GenericWindowedMul2(const GenericWindowedMul2& other) = delete;
       GenericWindowedMul2(GenericWindowedMul2&& other) = delete;
       GenericWindowedMul2& operator=(const GenericWindowedMul2& other) = delete;
@@ -1422,55 +1343,13 @@ class GenericWindowedMul2 final : public PrimeOrderCurve::PrecomputedMul2Table {
 
       ~GenericWindowedMul2() override = default;
 
-      GenericWindowedMul2(const GenericAffinePoint& x, const GenericAffinePoint& y) {
-         std::vector<GenericProjectivePoint> table;
+      GenericWindowedMul2(const GenericAffinePoint& p, const GenericAffinePoint& q) :
+            m_table(mul2_setup<GenericCurve, WindowBits>(p, q)) {}
 
-         for(size_t i = 0; i != TableSize; ++i) {
-            const size_t t_i = (i + 1);
-            const size_t x_i = t_i % WindowSize;
-            const size_t y_i = (t_i >> WindowBits) % WindowSize;
-
-            // Returns x_i * x + y_i * y
-            auto next_tbl_e = [&]() {
-               if(x_i % 2 == 0 && y_i % 2 == 0) {
-                  // Where possible using doubling (eg indices 1, 7, 9 in
-                  // the table above)
-                  return table[(t_i / 2) - 1].dbl();
-               } else if(x_i > 0 && y_i > 0) {
-                  // A combination of x and y
-                  if(x_i == 1) {
-                     return x + table[(y_i << WindowBits) - 1];
-                  } else if(y_i == 1) {
-                     return table[x_i - 1] + y;
-                  } else {
-                     return table[x_i - 1] + table[(y_i << WindowBits) - 1];
-                  }
-               } else if(x_i > 0 && y_i == 0) {
-                  // A multiple of x without a y component
-                  if(x_i == 1) {
-                     // Just x
-                     return GenericProjectivePoint::from_affine(x);
-                  } else {
-                     // x * x_{i-1}
-                     return x + table[x_i - 1 - 1];
-                  }
-               } else if(x_i == 0 && y_i > 0) {
-                  if(y_i == 1) {
-                     // Just y
-                     return GenericProjectivePoint::from_affine(y);
-                  } else {
-                     // y * y_{i-1}
-                     return y + table[((y_i - 1) << WindowBits) - 1];
-                  }
-               } else {
-                  BOTAN_ASSERT_UNREACHABLE();
-               }
-            };
-
-            table.emplace_back(next_tbl_e());
-         }
-
-         m_table = to_affine_batch<GenericCurve>(table);
+      GenericProjectivePoint mul2(const GenericScalar& x, const GenericScalar& y, RandomNumberGenerator& rng) const {
+         GenericBlindedScalarBits x_bits(x, rng, WindowBits);
+         GenericBlindedScalarBits y_bits(y, rng, WindowBits);
+         return mul2_exec<GenericCurve, WindowBits>(m_table, x_bits, y_bits, rng);
       }
 
       GenericProjectivePoint mul2_vartime(const GenericScalar& x, const GenericScalar& y) const {
@@ -1545,14 +1424,14 @@ PrimeOrderCurve::Scalar GenericPrimeOrderCurve::base_point_mul_x_mod_order(const
 PrimeOrderCurve::ProjectivePoint GenericPrimeOrderCurve::mul(const AffinePoint& pt,
                                                              const Scalar& scalar,
                                                              RandomNumberGenerator& rng) const {
-   GenericWindowedMul pt_table(from_stash(pt), 4);
+   GenericWindowedMul pt_table(from_stash(pt));
    return stash(pt_table.mul(from_stash(scalar), rng));
 }
 
 secure_vector<uint8_t> GenericPrimeOrderCurve::mul_x_only(const AffinePoint& pt,
                                                           const Scalar& scalar,
                                                           RandomNumberGenerator& rng) const {
-   GenericWindowedMul pt_table(from_stash(pt), 4);
+   GenericWindowedMul pt_table(from_stash(pt));
    auto pt_s = pt_table.mul(from_stash(scalar), rng);
    secure_vector<uint8_t> x_bytes(_params().field_bytes());
    to_affine_x<GenericCurve>(pt_s).serialize_to(x_bytes);
@@ -1579,22 +1458,19 @@ std::optional<PrimeOrderCurve::ProjectivePoint> GenericPrimeOrderCurve::mul2_var
    } else {
       return stash(pt);
    }
-};
+}
 
 std::optional<PrimeOrderCurve::ProjectivePoint> GenericPrimeOrderCurve::mul_px_qy(
    const AffinePoint& p, const Scalar& x, const AffinePoint& q, const Scalar& y, RandomNumberGenerator& rng) const {
-   // TODO this could be much faster using Mul2
-   GenericWindowedMul p_table(from_stash(p), 4);
-   GenericWindowedMul q_table(from_stash(q), 4);
 
-   auto pt = p_table.mul(from_stash(x), rng) + q_table.mul(from_stash(y), rng);
-
+   GenericWindowedMul2 table(from_stash(p), from_stash(q));
+   auto pt = table.mul2(from_stash(x), from_stash(y), rng);
    if(pt.is_identity().as_bool()) {
       return {};
    } else {
       return stash(pt);
    }
-};
+}
 
 bool GenericPrimeOrderCurve::mul2_vartime_x_mod_order_eq(const PrecomputedMul2Table& tableb,
                                                          const Scalar& v,

@@ -36,12 +36,12 @@ class PrimeOrderCurve {
       /// Somewhat arbitrary maximum size for a field or scalar
       ///
       /// Sized to fit at least P-521
-      static const size_t MaximumBitLength = 521;
+      static constexpr size_t MaximumBitLength = 521;
 
-      static const size_t MaximumByteLength = (MaximumBitLength + 7) / 8;
+      static constexpr size_t MaximumByteLength = (MaximumBitLength + 7) / 8;
 
       /// Number of words used to store MaximumByteLength
-      static const size_t StorageWords = (MaximumByteLength + sizeof(word) - 1) / sizeof(word);
+      static constexpr size_t StorageWords = (MaximumByteLength + sizeof(word) - 1) / sizeof(word);
 
       /// @returns nullptr if the curve specified is not available
       static std::shared_ptr<const PrimeOrderCurve> from_name(std::string_view name) {

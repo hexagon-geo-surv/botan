@@ -6,6 +6,7 @@
 
 #include <botan/internal/pcurves.h>
 
+#include <botan/assert.h>
 #include <botan/internal/pcurves_instance.h>
 
 #if defined(BOTAN_HAS_ASN1)

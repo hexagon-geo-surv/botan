@@ -11,6 +11,7 @@
 #include <botan/internal/ct_utils.h>
 #include <botan/internal/loadstor.h>
 #include <botan/internal/pcurves_algos.h>
+#include <botan/internal/pcurves_mul.h>
 #include <botan/internal/pcurves_util.h>
 #include <botan/internal/stl_util.h>
 #include <vector>
@@ -1306,6 +1307,8 @@ class EllipticCurve {
    public:
       typedef typename Params::W W;
 
+      typedef W WordType;
+
       static constexpr auto PW = Params::PW;
       static constexpr auto NW = Params::NW;
       static constexpr auto AW = Params::AW;
@@ -1313,11 +1316,13 @@ class EllipticCurve {
       // Simplifying assumption
       static_assert(PW.size() == NW.size());
 
-      class ScalarParams final : public IntParams<W, NW.size(), NW> {};
+      static constexpr size_t Words = PW.size();
+
+      class ScalarParams final : public IntParams<W, Words, NW> {};
 
       using Scalar = IntMod<MontgomeryRep<ScalarParams>>;
 
-      class FieldParams final : public IntParams<W, PW.size(), PW> {};
+      class FieldParams final : public IntParams<W, Words, PW> {};
 
       using FieldElement = IntMod<FieldRep<FieldParams>>;
 
@@ -1340,7 +1345,7 @@ class EllipticCurve {
       static constexpr bool ValidForSswuHash =
          (Params::Z != 0 && A.is_nonzero().as_bool() && B.is_nonzero().as_bool() && FieldElement::P_MOD_4 == 3);
 
-      static constexpr bool OrderIsLessThanField = bigint_cmp(NW.data(), NW.size(), PW.data(), PW.size()) == -1;
+      static constexpr bool OrderIsLessThanField = bigint_cmp(NW.data(), Words, PW.data(), Words) == -1;
 };
 
 /**
@@ -1395,12 +1400,14 @@ class BlindedScalarBits final {
       static constexpr size_t Bits = C::Scalar::BITS + (BlindingEnabled ? BlindingBits : 0);
       static constexpr size_t Bytes = (Bits + 7) / 8;
 
+      constexpr size_t bits() const { return Bits; }
+
       BlindedScalarBits(const typename C::Scalar& scalar, RandomNumberGenerator& rng) {
          if constexpr(BlindingEnabled) {
             constexpr size_t mask_words = BlindingBits / WordInfo<W>::bits;
             constexpr size_t mask_bytes = mask_words * WordInfo<W>::bytes;
 
-            constexpr size_t n_words = C::NW.size();
+            constexpr size_t n_words = C::Words;
 
             uint8_t maskb[mask_bytes] = {0};
             if(rng.is_seeded()) {
@@ -1475,43 +1482,6 @@ class UnblindedScalarBits final {
       std::array<uint8_t, C::Scalar::BYTES> m_bytes;
 };
 
-/**
-* Base point precomputation table
-*
-* This algorithm works by precomputing a set of points such that
-* the online phase of the point multiplication can be effected by
-* a sequence of point additions.
-*
-* The tables, even for W = 1, are large and costly to precompute, so
-* this is only used for the base point.
-*
-* The online phase of the algorithm uess `ceil(SB/W)` additions,
-* and no point doublings. The table is of size
-* `ceil(SB + W - 1)/W * ((1 << W) - 1)`
-* where SB is the bit length of the (blinded) scalar.
-*
-* Each window of the scalar is associated with a window in the table.
-* The table windows are unique to that offset within the scalar.
-*
-* The simplest version to understand is when W = 1. There the table
-* consists of [P, 2*P, 4*P, ..., 2^N*P] where N is the bit length of
-* the group order. The online phase consists of conditionally adding
-* table[i] depending on if bit i of the scalar is set or not.
-*
-* When W = 2, the scalar is examined 2 bits at a time, and the table
-* for a window index `I` is [(2^I)*P, (2^(I+1))*P, (2^I+2^(I+1))*P].
-*
-* This extends similarly for larger W
-*
-* At a certain point, the side channel silent table lookup becomes the
-* dominating cost
-*
-* For all W, each window in the table has an implicit element of
-* the identity element which is used if the scalar bits were all zero.
-* This is omitted to save space; AffinePoint::ct_select is designed
-* to assist in this by returning the identity element if its index
-* argument is zero, or otherwise it returns table[idx - 1]
-*/
 template <typename C, size_t W>
 class PrecomputedBaseMulTable final {
    public:
@@ -1526,69 +1496,11 @@ class PrecomputedBaseMulTable final {
 
       static constexpr size_t Windows = (BlindedScalar::Bits + WindowBits - 1) / WindowBits;
 
-      static_assert(Windows > 1);
-
-      // 2^W elements, less the identity element
-      static constexpr size_t WindowElements = (1 << WindowBits) - 1;
-
-      static constexpr size_t TableSize = Windows * WindowElements;
-
-      PrecomputedBaseMulTable(const AffinePoint& p) : m_table{} {
-         std::vector<ProjectivePoint> table;
-         table.reserve(TableSize);
-
-         auto accum = ProjectivePoint::from_affine(p);
-
-         for(size_t i = 0; i != TableSize; i += WindowElements) {
-            table.push_back(accum);
-
-            for(size_t j = 1; j != WindowElements; ++j) {
-               if(j % 2 == 1) {
-                  table.emplace_back(table[i + j / 2].dbl());
-               } else {
-                  table.emplace_back(table[i + j - 1] + table[i]);
-               }
-            }
-
-            accum = table[i + (WindowElements / 2)].dbl();
-         }
-
-         m_table = to_affine_batch<C>(table);
-      }
+      PrecomputedBaseMulTable(const AffinePoint& p) : m_table(basemul_setup<C, WindowBits>(p, BlindedScalar::Bits)) {}
 
       ProjectivePoint mul(const Scalar& s, RandomNumberGenerator& rng) const {
-         const BlindedScalar bits(s, rng);
-
-         // TODO: C++23 - use std::mdspan to access m_table
-         auto table = std::span{m_table};
-
-         auto accum = [&]() {
-            const size_t w_0 = bits.get_window(0);
-            const auto tbl_0 = table.first(WindowElements);
-            auto pt = ProjectivePoint::from_affine(AffinePoint::ct_select(tbl_0, w_0));
-            CT::poison(pt);
-            pt.randomize_rep(rng);
-            return pt;
-         }();
-
-         for(size_t i = 1; i != Windows; ++i) {
-            const size_t w_i = bits.get_window(WindowBits * i);
-            const auto tbl_i = table.subspan(WindowElements * i, WindowElements);
-
-            /*
-            None of these additions can be doublings, because in each iteration, the
-            discrete logarithms of the points we're selecting out of the table are
-            larger than the largest possible dlog of accum.
-            */
-            accum += AffinePoint::ct_select(tbl_i, w_i);
-
-            if(i <= 3) {
-               accum.randomize_rep(rng);
-            }
-         }
-
-         CT::unpoison(accum);
-         return accum;
+         const BlindedScalar scalar(s, rng);
+         return basemul_exec<C, WindowBits>(m_table, scalar, rng);
       }
 
    private:
@@ -1619,73 +1531,11 @@ class WindowedMulTable final {
       // 2^W elements, less the identity element
       static constexpr size_t TableSize = (1 << WindowBits) - 1;
 
-      WindowedMulTable(const AffinePoint& p) : m_table{} {
-         std::vector<ProjectivePoint> table;
-         table.reserve(TableSize);
-
-         table.push_back(ProjectivePoint::from_affine(p));
-         for(size_t i = 1; i != TableSize; ++i) {
-            if(i % 2 == 1) {
-               table.push_back(table[i / 2].dbl());
-            } else {
-               table.push_back(table[i - 1] + p);
-            }
-         }
-
-         m_table = to_affine_batch<C>(table);
-      }
+      WindowedMulTable(const AffinePoint& p) : m_table(varpoint_setup<C, TableSize>(p)) {}
 
       ProjectivePoint mul(const Scalar& s, RandomNumberGenerator& rng) const {
          const BlindedScalar bits(s, rng);
-
-         auto accum = [&]() {
-            const size_t w_0 = bits.get_window((Windows - 1) * WindowBits);
-            // Guaranteed because we set the high bit of the randomizer
-            BOTAN_DEBUG_ASSERT(w_0 != 0);
-            auto pt = ProjectivePoint::from_affine(AffinePoint::ct_select(m_table, w_0));
-            CT::poison(pt);
-            pt.randomize_rep(rng);
-            return pt;
-         }();
-
-         for(size_t i = 1; i != Windows; ++i) {
-            accum = accum.dbl_n(WindowBits);
-            const size_t w_i = bits.get_window((Windows - i - 1) * WindowBits);
-
-            /*
-            This point addition cannot be a doubling (except once)
-
-            Consider the sequence of points that are operated on, and specifically
-            their discrete logarithms. We start out at the point at infinity
-            (dlog 0) and then add the initial window which is precisely P*w_0
-
-            We then perform WindowBits doublings, so accum's dlog at the point
-            of the addition in the first iteration of the loop (when i == 1) is
-            at least 2^W * w_0.
-
-            Since we know w_0 > 0, then in every iteration of the loop, accums
-            dlog will always be greater than the dlog of the table element we
-            just looked up (something between 0 and 2^W-1), and thus the
-            addition into accum cannot be a doubling.
-
-            However due to blinding this argument fails, since we perform
-            multiplications using a scalar that is larger than the group
-            order. In this case it's possible that the dlog of accum becomes
-            `order + x` (or, effectively, `x`) and `x` is smaller than 2^W.
-            In this case, a doubling may occur. Future iterations of the loop
-            cannot be doublings by the same argument above. Since the blinding
-            factor is always less than the group order (substantially so),
-            it is not possible for the dlog of accum to overflow a second time.
-            */
-            accum += AffinePoint::ct_select(m_table, w_i);
-
-            if(i <= 3) {
-               accum.randomize_rep(rng);
-            }
-         }
-
-         CT::unpoison(accum);
-         return accum;
+         return varpoint_exec<C, WindowBits>(m_table, bits, rng);
       }
 
    private:
@@ -1735,21 +1585,7 @@ class WindowedBoothMulTable final {
       // 2^W elements [1*P, 2*P, ..., 2^W*P]
       static constexpr size_t TableSize = 1 << TableBits;
 
-      WindowedBoothMulTable(const AffinePoint& p) : m_table{} {
-         std::vector<ProjectivePoint> table;
-         table.reserve(TableSize);
-
-         table.push_back(ProjectivePoint::from_affine(p));
-         for(size_t i = 1; i != TableSize; ++i) {
-            if(i % 2 == 1) {
-               table.push_back(table[i / 2].dbl());
-            } else {
-               table.push_back(table[i - 1] + p);
-            }
-         }
-
-         m_table = to_affine_batch<C>(table);
-      }
+      WindowedBoothMulTable(const AffinePoint& p) : m_table(varpoint_setup<C, TableSize>(p)) {}
 
       ProjectivePoint mul(const Scalar& s, RandomNumberGenerator& rng) const {
          const BlindedScalar bits(s, rng);
@@ -1796,26 +1632,6 @@ class WindowedBoothMulTable final {
       std::vector<AffinePoint> m_table;
 };
 
-/**
-* Effect 2-ary multiplication ie x*G + y*H
-*
-* This is done using a windowed variant of what is usually called
-* Shamir's trick.
-*
-* The W = 1 case is simple; we precompute an extra point GH = G + H,
-* and then examine 1 bit in each of x and y. If one or the other bits
-* are set then add G or H resp. If both bits are set, add GH.
-*
-* The example below is a precomputed table for W=2. The flattened table
-* begins at (x_i,y_i) = (1,0), i.e. the identity element is omitted.
-* The indices in each cell refer to the cell's location in m_table.
-*
-*  x->           0          1          2         3
-*       0  |/ (ident) |0  x     |1  2x      |2  3x     |
-*       1  |3    y    |4  x+y   |5  2x+y    |6  3x+y   |
-*  y =  2  |7    2y   |8  x+2y  |9  2(x+y)  |10 3x+2y  |
-*       3  |11   3y   |12 x+3y  |13 2x+3y   |14 3x+3y  |
-*/
 template <typename C, size_t W>
 class WindowedMul2Table final {
    public:
@@ -1828,99 +1644,17 @@ class WindowedMul2Table final {
 
       static constexpr size_t WindowBits = W;
 
-      static constexpr size_t WindowSize = (1 << WindowBits);
-
-      // 2^(2*W) elements, less the identity element
-      static constexpr size_t TableSize = (1 << (2 * WindowBits)) - 1;
-
-      WindowedMul2Table(const AffinePoint& x, const AffinePoint& y) {
-         std::vector<ProjectivePoint> table;
-         table.reserve(TableSize);
-
-         for(size_t i = 0; i != TableSize; ++i) {
-            const size_t t_i = (i + 1);
-            const size_t x_i = t_i % WindowSize;
-            const size_t y_i = (t_i >> WindowBits) % WindowSize;
-
-            // Returns x_i * x + y_i * y
-            auto next_tbl_e = [&]() {
-               if(x_i % 2 == 0 && y_i % 2 == 0) {
-                  // Where possible using doubling (eg indices 1, 7, 9 in
-                  // the table above)
-                  return table[(t_i / 2) - 1].dbl();
-               } else if(x_i > 0 && y_i > 0) {
-                  // A combination of x and y
-                  if(x_i == 1) {
-                     return x + table[(y_i << WindowBits) - 1];
-                  } else if(y_i == 1) {
-                     return table[x_i - 1] + y;
-                  } else {
-                     return table[x_i - 1] + table[(y_i << WindowBits) - 1];
-                  }
-               } else if(x_i > 0 && y_i == 0) {
-                  // A multiple of x without a y component
-                  if(x_i == 1) {
-                     // Just x
-                     return ProjectivePoint::from_affine(x);
-                  } else {
-                     // x * x_{i-1}
-                     return x + table[x_i - 1 - 1];
-                  }
-               } else if(x_i == 0 && y_i > 0) {
-                  if(y_i == 1) {
-                     // Just y
-                     return ProjectivePoint::from_affine(y);
-                  } else {
-                     // y * y_{i-1}
-                     return y + table[((y_i - 1) << WindowBits) - 1];
-                  }
-               } else {
-                  BOTAN_ASSERT_UNREACHABLE();
-               }
-            };
-
-            table.emplace_back(next_tbl_e());
-         }
-
-         m_table = to_affine_batch<C>(table);
-      }
+      WindowedMul2Table(const AffinePoint& p, const AffinePoint& q) : m_table(mul2_setup<C, WindowBits>(p, q)) {}
 
       /**
       * Constant time 2-ary multiplication
       */
       ProjectivePoint mul2(const Scalar& s1, const Scalar& s2, RandomNumberGenerator& rng) const {
          using BlindedScalar = BlindedScalarBits<C, WindowBits>;
-
          BlindedScalar bits1(s1, rng);
          BlindedScalar bits2(s2, rng);
 
-         constexpr size_t Windows = (BlindedScalar::Bits + WindowBits - 1) / WindowBits;
-
-         auto accum = [&]() {
-            const size_t w_1 = bits1.get_window((Windows - 1) * WindowBits);
-            const size_t w_2 = bits2.get_window((Windows - 1) * WindowBits);
-            const size_t window = w_1 + (w_2 << WindowBits);
-            auto pt = ProjectivePoint::from_affine(AffinePoint::ct_select(m_table, window));
-            CT::poison(pt);
-            pt.randomize_rep(rng);
-            return pt;
-         }();
-
-         for(size_t i = 1; i != Windows; ++i) {
-            accum = accum.dbl_n(WindowBits);
-
-            const size_t w_1 = bits1.get_window((Windows - i - 1) * WindowBits);
-            const size_t w_2 = bits2.get_window((Windows - i - 1) * WindowBits);
-            const size_t window = w_1 + (w_2 << WindowBits);
-            accum += AffinePoint::ct_select(m_table, window);
-
-            if(i <= 3) {
-               accum.randomize_rep(rng);
-            }
-         }
-
-         CT::unpoison(accum);
-         return accum;
+         return mul2_exec<C, WindowBits>(m_table, bits1, bits2, rng);
       }
 
       /**
