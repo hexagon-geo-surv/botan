@@ -1128,58 +1128,7 @@ class ProjectiveCurvePoint {
       /**
       * Projective point addition
       */
-      constexpr static Self add(const Self& a, const Self& b) {
-         const auto a_is_identity = a.is_identity();
-         const auto b_is_identity = b.is_identity();
-
-         if((a_is_identity && b_is_identity).as_bool()) {
-            return Self::identity();
-         }
-
-         /*
-         https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-1998-cmo-2
-
-         Cost: 12M + 4S + 6add + 1*2
-         */
-
-         const auto Z1Z1 = a.z().square();
-         const auto Z2Z2 = b.z().square();
-         const auto U1 = a.x() * Z2Z2;
-         const auto U2 = b.x() * Z1Z1;
-         const auto S1 = a.y() * b.z() * Z2Z2;
-         const auto S2 = b.y() * a.z() * Z1Z1;
-         const auto H = U2 - U1;
-         const auto r = S2 - S1;
-
-         // If a == -b then H == 0 && r != 0, in which case
-         // at the end we'll set z = a.z * b.z * H = 0, resulting
-         // in the correct output (point at infinity)
-         if((r.is_zero() && H.is_zero()).as_bool()) {
-            return a.dbl();
-         }
-
-         const auto HH = H.square();
-         const auto HHH = H * HH;
-         const auto V = U1 * HH;
-         const auto t2 = r.square();
-         const auto t3 = V + V;
-         const auto t4 = t2 - HHH;
-         auto X3 = t4 - t3;
-         const auto t5 = V - X3;
-         const auto t6 = S1 * HHH;
-         const auto t7 = r * t5;
-         auto Y3 = t7 - t6;
-         const auto t8 = b.z() * H;
-         auto Z3 = a.z() * t8;
-
-         // if a is identity then return b
-         FieldElement::conditional_assign(X3, Y3, Z3, a_is_identity, b.x(), b.y(), b.z());
-
-         // if b is identity then return a
-         FieldElement::conditional_assign(X3, Y3, Z3, b_is_identity, a.x(), a.y(), a.z());
-
-         return Self(X3, Y3, Z3);
-      }
+      constexpr static Self add(const Self& a, const Self& b) { return point_add<Self, FieldElement>(a, b); }
 
       /**
       * Iterated point doubling
