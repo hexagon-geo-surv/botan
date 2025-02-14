@@ -1019,51 +1019,7 @@ class GenericProjectivePoint final {
       * Mixed (projective + affine) point addition
       */
       static Self add_mixed(const Self& a, const GenericAffinePoint& b) {
-         const auto a_is_identity = a.is_identity();
-         const auto b_is_identity = b.is_identity();
-         if((a_is_identity && b_is_identity).as_bool()) {
-            return Self::identity(a.curve());
-         }
-
-         /*
-         https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-1998-cmo-2
-
-         Cost: 8M + 3S + 6add + 1*2
-         */
-
-         const auto Z1Z1 = a.z().square();
-         const auto U2 = b.x() * Z1Z1;
-         const auto S2 = b.y() * a.z() * Z1Z1;
-         const auto H = U2 - a.x();
-         const auto r = S2 - a.y();
-
-         // If r == H == 0 then we are in the doubling case
-         // For a == -b we compute the correct result because
-         // H will be zero, leading to Z3 being zero also
-         if((r.is_zero() && H.is_zero()).as_bool()) {
-            return a.dbl();
-         }
-
-         const auto HH = H.square();
-         const auto HHH = H * HH;
-         const auto V = a.x() * HH;
-         const auto t2 = r.square();
-         const auto t3 = V + V;
-         const auto t4 = t2 - HHH;
-         auto X3 = t4 - t3;
-         const auto t5 = V - X3;
-         const auto t6 = a.y() * HHH;
-         const auto t7 = r * t5;
-         auto Y3 = t7 - t6;
-         auto Z3 = a.z() * H;
-
-         // if a is identity then return b
-         GenericField::conditional_assign(X3, Y3, Z3, a_is_identity, b.x(), b.y(), GenericField::one(a.curve()));
-
-         // if b is identity then return a
-         GenericField::conditional_assign(X3, Y3, Z3, b_is_identity, a.x(), a.y(), a.z());
-
-         return Self(X3, Y3, Z3);
+         return point_add_mixed<Self, GenericAffinePoint, GenericField>(a, b, GenericField::one(a.curve()));
       }
 
       /**
