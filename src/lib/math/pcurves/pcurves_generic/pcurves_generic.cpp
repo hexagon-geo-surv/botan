@@ -1202,7 +1202,7 @@ class GenericBlindedScalarBits final {
 
 class GenericWindowedMul final {
    public:
-      static constexpr size_t WindowBits = 3;
+      static constexpr size_t WindowBits = VarPointWindowBits;
       static constexpr size_t TableSize = (1 << WindowBits) - 1;
 
       GenericWindowedMul(const GenericAffinePoint& pt) : m_table(varpoint_setup<GenericCurve, TableSize>(pt)) {}
@@ -1219,7 +1219,7 @@ class GenericWindowedMul final {
 
 class GenericBaseMulTable final {
    public:
-      static constexpr size_t WindowBits = 4;
+      static constexpr size_t WindowBits = BasePointWindowBits;
 
       static constexpr size_t WindowElements = (1 << WindowBits) - 1;
 
@@ -1241,7 +1241,7 @@ class GenericBaseMulTable final {
 
 class GenericWindowedMul2 final : public PrimeOrderCurve::PrecomputedMul2Table {
    public:
-      static constexpr size_t WindowBits = 3;
+      static constexpr size_t WindowBits = Mul2PrecompWindowBits;
 
       GenericWindowedMul2(const GenericWindowedMul2& other) = delete;
       GenericWindowedMul2(GenericWindowedMul2&& other) = delete;

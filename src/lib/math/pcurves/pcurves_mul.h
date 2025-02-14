@@ -17,6 +17,15 @@ namespace Botan {
 class RandomNumberGenerator;
 
 /*
+* Multiplication algorithm window size parameters
+*/
+
+static constexpr size_t BasePointWindowBits = 5;
+static constexpr size_t VarPointWindowBits = 4;
+static constexpr size_t Mul2PrecompWindowBits = 3;
+static constexpr size_t Mul2WindowBits = 2;
+
+/*
 * Base point precomputation table
 *
 * This algorithm works by precomputing a set of points such that
