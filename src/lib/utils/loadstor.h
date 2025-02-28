@@ -294,11 +294,9 @@ inline constexpr WrappedOutT load_any(InR&& in_range) {
             return static_cast<OutT>(in[0]);
          } else if constexpr(is_native(endianness)) {
             return typecast_copy<OutT>(in);
-         } else if constexpr(is_opposite(endianness)) {
-            return reverse_bytes(typecast_copy<OutT>(in));
          } else {
-            static_assert(false);
-            return fallback_load_any<endianness, OutT>(std::forward<InR>(in_range));
+            static_assert(is_opposite(endianness));
+            return reverse_bytes(typecast_copy<OutT>(in));
          }
       }
    }());
@@ -543,11 +541,9 @@ inline constexpr void store_any(WrappedInT wrapped_in, OutR&& out_range) {
          out[0] = static_cast<uint8_t>(in);
       } else if constexpr(is_native(endianness)) {
          typecast_copy(out, in);
-      } else if constexpr(is_opposite(endianness)) {
-         typecast_copy(out, reverse_bytes(in));
       } else {
-         static_assert(false);
-         return fallback_store_any<endianness, InT>(in, std::forward<OutR>(out_range));
+         static_assert(is_opposite(endianness));
+         typecast_copy(out, reverse_bytes(in));
       }
    }
 }
