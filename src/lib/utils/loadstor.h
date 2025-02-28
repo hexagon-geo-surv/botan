@@ -15,6 +15,7 @@
 #include <botan/strong_type.h>
 #include <botan/types.h>
 #include <botan/internal/bswap.h>
+#include <bit>
 
 /**
  * @file loadstor.h
@@ -54,6 +55,8 @@
  */
 
 namespace Botan {
+
+static_assert(std::endian::native == std::endian::big || std::endian::native == std::endian::little);
 
 /**
 * Byte extraction
@@ -123,48 +126,24 @@ inline constexpr uint64_t make_uint64(
 
 namespace detail {
 
-enum class Endianness : bool {
-   Big,
-   Little,
-};
-
 /**
  * @warning This function may return false if the native endianness is unknown
  * @returns true iff the native endianness matches the given endianness
  */
-constexpr bool is_native(Endianness endianness) {
-#if defined(BOTAN_TARGET_CPU_IS_BIG_ENDIAN)
-   return endianness == Endianness::Big;
-#elif defined(BOTAN_TARGET_CPU_IS_LITTLE_ENDIAN)
-   return endianness == Endianness::Little;
-#else
-   BOTAN_UNUSED(endianness);
-   return false;
-#endif
+constexpr bool is_native(std::endian endianness) {
+   return (std::endian::native == endianness);
 }
 
 /**
  * @warning This function may return false if the native endianness is unknown
  * @returns true iff the native endianness does not match the given endianness
  */
-constexpr bool is_opposite(Endianness endianness) {
-#if defined(BOTAN_TARGET_CPU_IS_BIG_ENDIAN)
-   return endianness == Endianness::Little;
-#elif defined(BOTAN_TARGET_CPU_IS_LITTLE_ENDIAN)
-   return endianness == Endianness::Big;
-#else
-   BOTAN_UNUSED(endianness);
-   return false;
-#endif
+constexpr bool is_opposite(std::endian endianness) {
+   return (std::endian::native != endianness);
 }
 
-template <Endianness endianness>
 constexpr bool native_endianness_is_unknown() {
-#if defined(BOTAN_TARGET_CPU_IS_BIG_ENDIAN) || defined(BOTAN_TARGET_CPU_IS_LITTLE_ENDIAN)
-   return false;
-#else
-   return true;
-#endif
+   return std::endian::native != std::endian::little && std::endian::native != std::endian::big;
 }
 
 /**
@@ -234,16 +213,16 @@ constexpr auto wrap_strong_type_or_enum(T t) {
  * This will be used only if the endianness of the target platform is unknown at
  * compile time.
  */
-template <Endianness endianness, std::unsigned_integral OutT, ranges::contiguous_range<uint8_t> InR>
+template <std::endian endianness, std::unsigned_integral OutT, ranges::contiguous_range<uint8_t> InR>
 inline constexpr OutT fallback_load_any(InR&& in_range) {
    std::span in{in_range};
    // clang-format off
-   if constexpr(endianness == Endianness::Big) {
+   if constexpr(endianness == std::endian::big) {
       return [&]<size_t... i>(std::index_sequence<i...>) {
          return static_cast<OutT>(((static_cast<OutT>(in[i]) << ((sizeof(OutT) - i - 1) * 8)) | ...));
       } (std::make_index_sequence<sizeof(OutT)>());
    } else {
-      static_assert(endianness == Endianness::Little);
+      static_assert(endianness == std::endian::little);
       return [&]<size_t... i>(std::index_sequence<i...>) {
          return static_cast<OutT>(((static_cast<OutT>(in[i]) << (i * 8)) | ...));
       } (std::make_index_sequence<sizeof(OutT)>());
@@ -256,16 +235,16 @@ inline constexpr OutT fallback_load_any(InR&& in_range) {
  * This will be used only if the endianness of the target platform is unknown at
  * compile time.
  */
-template <Endianness endianness, std::unsigned_integral InT, ranges::contiguous_output_range<uint8_t> OutR>
+template <std::endian endianness, std::unsigned_integral InT, ranges::contiguous_output_range<uint8_t> OutR>
 inline constexpr void fallback_store_any(InT in, OutR&& out_range) {
    std::span out{out_range};
    // clang-format off
-   if constexpr(endianness == Endianness::Big) {
+   if constexpr(endianness == std::endian::big) {
       [&]<size_t... i>(std::index_sequence<i...>) {
          ((out[i] = get_byte<i>(in)), ...);
       } (std::make_index_sequence<sizeof(InT)>());
    } else {
-      static_assert(endianness == Endianness::Little);
+      static_assert(endianness == std::endian::little);
       [&]<size_t... i>(std::index_sequence<i...>) {
          ((out[i] = get_byte<sizeof(InT) - i - 1>(in)), ...);
       } (std::make_index_sequence<sizeof(InT)>());
@@ -281,7 +260,7 @@ inline constexpr void fallback_store_any(InT in, OutR&& out_range) {
  *
  * Template arguments of all overloads of load_any() share the same semantics:
  *
- *   1.  Endianness      Either `Endianness::Big` or `Endianness::Little`, that
+ *   1.  std::endian      Either `std::endian::big` or `std::endian::little`, that
  *                       will eventually select the byte order translation mode
  *                       implemented in this base function.
  *
@@ -297,7 +276,7 @@ inline constexpr void fallback_store_any(InT in, OutR&& out_range) {
  * @param in_range a fixed-length byte range
  * @return T loaded from @p in_range, as a big-endian value
  */
-template <Endianness endianness, unsigned_integralish WrappedOutT, ranges::contiguous_range<uint8_t> InR>
+template <std::endian endianness, unsigned_integralish WrappedOutT, ranges::contiguous_range<uint8_t> InR>
    requires(!custom_loadable<strong_type_wrapped_type<WrappedOutT>>)
 inline constexpr WrappedOutT load_any(InR&& in_range) {
    using OutT = detail::wrapped_type<WrappedOutT>;
@@ -318,7 +297,7 @@ inline constexpr WrappedOutT load_any(InR&& in_range) {
          } else if constexpr(is_opposite(endianness)) {
             return reverse_bytes(typecast_copy<OutT>(in));
          } else {
-            static_assert(native_endianness_is_unknown<endianness>());
+            static_assert(native_endianness_is_unknown());
             return fallback_load_any<endianness, OutT>(std::forward<InR>(in_range));
          }
       }
@@ -334,13 +313,13 @@ inline constexpr WrappedOutT load_any(InR&& in_range) {
  * @param in_range a fixed-length byte range
  * @return T loaded from @p in_range, as a big-endian value
  */
-template <Endianness endianness, unsigned_integralish WrappedOutT, ranges::contiguous_range<uint8_t> InR>
+template <std::endian endianness, unsigned_integralish WrappedOutT, ranges::contiguous_range<uint8_t> InR>
    requires(custom_loadable<strong_type_wrapped_type<WrappedOutT>>)
 inline constexpr WrappedOutT load_any(InR&& in_range) {
    using OutT = detail::wrapped_type<WrappedOutT>;
    ranges::assert_exact_byte_length<sizeof(OutT)>(in_range);
    std::span<const uint8_t, sizeof(OutT)> ins{in_range};
-   if constexpr(endianness == Endianness::Big) {
+   if constexpr(endianness == std::endian::big) {
       return wrap_strong_type<WrappedOutT>(OutT::load_be(ins));
    } else {
       return wrap_strong_type<WrappedOutT>(OutT::load_le(ins));
@@ -352,7 +331,7 @@ inline constexpr WrappedOutT load_any(InR&& in_range) {
  * @param in   a fixed-length span to some bytes
  * @param outs a arbitrary-length parameter list of unsigned integers to be loaded
  */
-template <Endianness endianness, typename OutT, ranges::contiguous_range<uint8_t> InR, unsigned_integralish... Ts>
+template <std::endian endianness, typename OutT, ranges::contiguous_range<uint8_t> InR, unsigned_integralish... Ts>
    requires(sizeof...(Ts) > 0) && ((std::same_as<AutoDetect, OutT> && all_same_v<Ts...>) ||
                                    (unsigned_integralish<OutT> && all_same_v<OutT, Ts...>))
 inline constexpr void load_any(InR&& in, Ts&... outs) {
@@ -372,7 +351,7 @@ inline constexpr void load_any(InR&& in, Ts&... outs) {
  * @param out the output range of words
  * @param in the input range of bytes
  */
-template <Endianness endianness,
+template <std::endian endianness,
           typename OutT,
           ranges::contiguous_output_range OutR,
           ranges::contiguous_range<uint8_t> InR>
@@ -416,7 +395,7 @@ inline constexpr void load_any(OutR&& out, InR&& in) {
  * @param in_range a statically-sized range with some bytes
  * @return T loaded from in
  */
-template <Endianness endianness, typename OutT, ranges::contiguous_range<uint8_t> InR>
+template <std::endian endianness, typename OutT, ranges::contiguous_range<uint8_t> InR>
    requires(std::same_as<AutoDetect, OutT> ||
             ((ranges::statically_spanable_range<OutT> || concepts::resizable_container<OutT>) &&
              unsigned_integralish<typename OutT::value_type>))
@@ -476,7 +455,7 @@ inline constexpr auto load_any(InR&& in_range) {
  * @param off an offset into the array
  * @return off'th T of in, as a big-endian value
  */
-template <Endianness endianness, unsigned_integralish OutT>
+template <std::endian endianness, unsigned_integralish OutT>
 inline constexpr OutT load_any(const uint8_t in[], size_t off) {
    // asserts that *in points to enough bytes to read at offset off
    constexpr size_t out_size = sizeof(OutT);
@@ -488,7 +467,7 @@ inline constexpr OutT load_any(const uint8_t in[], size_t off) {
  * @param in   a pointer to some bytes
  * @param outs a arbitrary-length parameter list of unsigned integers to be loaded
  */
-template <Endianness endianness, typename OutT, unsigned_integralish... Ts>
+template <std::endian endianness, typename OutT, unsigned_integralish... Ts>
    requires(sizeof...(Ts) > 0 && all_same_v<Ts...> &&
             ((std::same_as<AutoDetect, OutT> && all_same_v<Ts...>) ||
              (unsigned_integralish<OutT> && all_same_v<OutT, Ts...>)))
@@ -504,7 +483,7 @@ inline constexpr void load_any(const uint8_t in[], Ts&... outs) {
  * @param in the input array of bytes
  * @param count how many words are in in
  */
-template <Endianness endianness, typename OutT, unsigned_integralish T>
+template <std::endian endianness, typename OutT, unsigned_integralish T>
    requires(std::same_as<AutoDetect, OutT> || std::same_as<T, OutT>)
 inline constexpr void load_any(T out[], const uint8_t in[], size_t count) {
    // asserts that *in and *out point to the correct amount of memory
@@ -519,7 +498,7 @@ inline constexpr void load_any(T out[], const uint8_t in[], size_t count) {
  */
 template <typename OutT = detail::AutoDetect, typename... ParamTs>
 inline constexpr auto load_le(ParamTs&&... params) {
-   return detail::load_any<detail::Endianness::Little, OutT>(std::forward<ParamTs>(params)...);
+   return detail::load_any<std::endian::little, OutT>(std::forward<ParamTs>(params)...);
 }
 
 /**
@@ -528,7 +507,7 @@ inline constexpr auto load_le(ParamTs&&... params) {
  */
 template <typename OutT = detail::AutoDetect, typename... ParamTs>
 inline constexpr auto load_be(ParamTs&&... params) {
-   return detail::load_any<detail::Endianness::Big, OutT>(std::forward<ParamTs>(params)...);
+   return detail::load_any<std::endian::big, OutT>(std::forward<ParamTs>(params)...);
 }
 
 namespace detail {
@@ -546,7 +525,7 @@ namespace detail {
  * @param wrapped_in an unsigned integral to be stored
  * @param out_range  a byte range to store the word into
  */
-template <Endianness endianness, unsigned_integralish WrappedInT, ranges::contiguous_output_range<uint8_t> OutR>
+template <std::endian endianness, unsigned_integralish WrappedInT, ranges::contiguous_output_range<uint8_t> OutR>
    requires(!custom_storable<strong_type_wrapped_type<WrappedInT>>)
 inline constexpr void store_any(WrappedInT wrapped_in, OutR&& out_range) {
    const auto in = detail::unwrap_strong_type_or_enum(wrapped_in);
@@ -567,7 +546,7 @@ inline constexpr void store_any(WrappedInT wrapped_in, OutR&& out_range) {
       } else if constexpr(is_opposite(endianness)) {
          typecast_copy(out, reverse_bytes(in));
       } else {
-         static_assert(native_endianness_is_unknown<endianness>());
+         static_assert(native_endianness_is_unknown());
          return fallback_store_any<endianness, InT>(in, std::forward<OutR>(out_range));
       }
    }
@@ -582,14 +561,14 @@ inline constexpr void store_any(WrappedInT wrapped_in, OutR&& out_range) {
  * @param wrapped_in a custom object to be stored
  * @param out_range  a byte range to store the word into
  */
-template <Endianness endianness, unsigned_integralish WrappedInT, ranges::contiguous_output_range<uint8_t> OutR>
+template <std::endian endianness, unsigned_integralish WrappedInT, ranges::contiguous_output_range<uint8_t> OutR>
    requires(custom_storable<strong_type_wrapped_type<WrappedInT>>)
 inline constexpr void store_any(WrappedInT wrapped_in, OutR&& out_range) {
    const auto in = detail::unwrap_strong_type_or_enum(wrapped_in);
    using InT = decltype(in);
    ranges::assert_exact_byte_length<sizeof(in)>(out_range);
    std::span<uint8_t, sizeof(InT)> outs{out_range};
-   if constexpr(endianness == Endianness::Big) {
+   if constexpr(endianness == std::endian::big) {
       in.store_be(outs);
    } else {
       in.store_le(outs);
@@ -601,7 +580,7 @@ inline constexpr void store_any(WrappedInT wrapped_in, OutR&& out_range) {
  * @param out a sized range of some bytes
  * @param ins a arbitrary-length parameter list of unsigned integers to be stored
  */
-template <Endianness endianness,
+template <std::endian endianness,
           typename InT,
           ranges::contiguous_output_range<uint8_t> OutR,
           unsigned_integralish... Ts>
@@ -623,7 +602,7 @@ inline constexpr void store_any(OutR&& out, Ts... ins) {
  * @param out the output range of bytes
  * @param in the input range of words
  */
-template <Endianness endianness,
+template <std::endian endianness,
           typename InT,
           ranges::contiguous_output_range<uint8_t> OutR,
           ranges::spanable_range InR>
@@ -669,7 +648,7 @@ inline constexpr void store_any(OutR&& out, InR&& in) {
  * @param in an unsigned integer to be stored
  * @param out_range a range of bytes to store the word into
  */
-template <Endianness endianness, typename InT, unsigned_integralish T, ranges::contiguous_output_range<uint8_t> OutR>
+template <std::endian endianness, typename InT, unsigned_integralish T, ranges::contiguous_output_range<uint8_t> OutR>
    requires std::same_as<AutoDetect, InT>
 inline constexpr void store_any(T in, OutR&& out_range) {
    store_any<endianness, T>(in, std::forward<OutR>(out_range));
@@ -684,7 +663,7 @@ inline constexpr void store_any(T in, OutR&& out_range) {
  * @param in_range a range of words that should be stored
  * @return a container of bytes that contains the stored words
  */
-template <Endianness endianness, typename OutR, ranges::spanable_range InR>
+template <std::endian endianness, typename OutR, ranges::spanable_range InR>
    requires(std::same_as<AutoDetect, OutR> ||
             (ranges::statically_spanable_range<OutR> && std::default_initializable<OutR>) ||
             concepts::resizable_byte_buffer<OutR>)
@@ -719,7 +698,7 @@ inline constexpr auto store_any(InR&& in_range) {
  * @param ins some words that should be stored
  * @return a container of bytes that contains the stored words
  */
-template <Endianness endianness, typename OutR, unsigned_integralish... Ts>
+template <std::endian endianness, typename OutR, unsigned_integralish... Ts>
    requires all_same_v<Ts...>
 inline constexpr auto store_any(Ts... ins) {
    return store_any<endianness, OutR>(std::array{ins...});
@@ -734,7 +713,7 @@ inline constexpr auto store_any(Ts... ins) {
  * @param in the input unsigned integer
  * @param out the byte array to write to
  */
-template <Endianness endianness, typename InT, unsigned_integralish T>
+template <std::endian endianness, typename InT, unsigned_integralish T>
    requires(std::same_as<AutoDetect, InT> || std::same_as<T, InT>)
 inline constexpr void store_any(T in, uint8_t out[]) {
    // asserts that *out points to enough bytes to write into
@@ -746,7 +725,7 @@ inline constexpr void store_any(T in, uint8_t out[]) {
  * @param ins a arbitrary-length parameter list of unsigned integers to be stored
  * @param out the byte array to write to
  */
-template <Endianness endianness, typename InT, unsigned_integralish T0, unsigned_integralish... Ts>
+template <std::endian endianness, typename InT, unsigned_integralish T0, unsigned_integralish... Ts>
    requires(std::same_as<AutoDetect, InT> || std::same_as<T0, InT>) && all_same_v<T0, Ts...>
 inline constexpr void store_any(uint8_t out[], T0 in0, Ts... ins) {
    constexpr auto bytes = sizeof(in0) + (sizeof(ins) + ... + 0);
@@ -762,7 +741,7 @@ inline constexpr void store_any(uint8_t out[], T0 in0, Ts... ins) {
  */
 template <typename ModifierT = detail::AutoDetect, typename... ParamTs>
 inline constexpr auto store_le(ParamTs&&... params) {
-   return detail::store_any<detail::Endianness::Little, ModifierT>(std::forward<ParamTs>(params)...);
+   return detail::store_any<std::endian::little, ModifierT>(std::forward<ParamTs>(params)...);
 }
 
 /**
@@ -771,12 +750,12 @@ inline constexpr auto store_le(ParamTs&&... params) {
  */
 template <typename ModifierT = detail::AutoDetect, typename... ParamTs>
 inline constexpr auto store_be(ParamTs&&... params) {
-   return detail::store_any<detail::Endianness::Big, ModifierT>(std::forward<ParamTs>(params)...);
+   return detail::store_any<std::endian::big, ModifierT>(std::forward<ParamTs>(params)...);
 }
 
 namespace detail {
 
-template <Endianness endianness, unsigned_integralish T>
+template <std::endian endianness, unsigned_integralish T>
 inline size_t copy_out_any_word_aligned_portion(std::span<uint8_t>& out, std::span<const T>& in) {
    const size_t full_words = out.size() / sizeof(T);
    const size_t full_word_bytes = full_words * sizeof(T);
@@ -801,7 +780,7 @@ template <ranges::spanable_range InR>
 inline void copy_out_be(std::span<uint8_t> out, InR&& in) {
    using T = std::ranges::range_value_t<InR>;
    std::span<const T> in_s{in};
-   const auto remaining_bytes = detail::copy_out_any_word_aligned_portion<detail::Endianness::Big>(out, in_s);
+   const auto remaining_bytes = detail::copy_out_any_word_aligned_portion<std::endian::big>(out, in_s);
 
    // copy remaining bytes as a partial word
    for(size_t i = 0; i < remaining_bytes; ++i) {
@@ -817,7 +796,7 @@ template <ranges::spanable_range InR>
 inline void copy_out_le(std::span<uint8_t> out, InR&& in) {
    using T = std::ranges::range_value_t<InR>;
    std::span<const T> in_s{in};
-   const auto remaining_bytes = detail::copy_out_any_word_aligned_portion<detail::Endianness::Little>(out, in_s);
+   const auto remaining_bytes = detail::copy_out_any_word_aligned_portion<std::endian::little>(out, in_s);
 
    // copy remaining bytes as a partial word
    for(size_t i = 0; i < remaining_bytes; ++i) {
