@@ -139,11 +139,11 @@ constexpr bool is_native(std::endian endianness) {
  * @returns true iff the native endianness does not match the given endianness
  */
 constexpr bool is_opposite(std::endian endianness) {
-   return (std::endian::native != endianness);
-}
-
-constexpr bool native_endianness_is_unknown() {
-   return std::endian::native != std::endian::little && std::endian::native != std::endian::big;
+   if constexpr(std::endian::native == std::endian::big) {
+      return (endianness == std::endian::little);
+   } else {
+      return (endianness == std::endian::big);
+   }
 }
 
 /**
@@ -297,7 +297,7 @@ inline constexpr WrappedOutT load_any(InR&& in_range) {
          } else if constexpr(is_opposite(endianness)) {
             return reverse_bytes(typecast_copy<OutT>(in));
          } else {
-            static_assert(native_endianness_is_unknown());
+            static_assert(false);
             return fallback_load_any<endianness, OutT>(std::forward<InR>(in_range));
          }
       }
@@ -546,7 +546,7 @@ inline constexpr void store_any(WrappedInT wrapped_in, OutR&& out_range) {
       } else if constexpr(is_opposite(endianness)) {
          typecast_copy(out, reverse_bytes(in));
       } else {
-         static_assert(native_endianness_is_unknown());
+         static_assert(false);
          return fallback_store_any<endianness, InT>(in, std::forward<OutR>(out_range));
       }
    }
