@@ -127,7 +127,6 @@ inline constexpr uint64_t make_uint64(
 namespace detail {
 
 /**
- * @warning This function may return false if the native endianness is unknown
  * @returns true iff the native endianness matches the given endianness
  */
 constexpr bool is_native(std::endian endianness) {
@@ -135,7 +134,6 @@ constexpr bool is_native(std::endian endianness) {
 }
 
 /**
- * @warning This function may return false if the native endianness is unknown
  * @returns true iff the native endianness does not match the given endianness
  */
 constexpr bool is_opposite(std::endian endianness) {
@@ -210,8 +208,8 @@ constexpr auto wrap_strong_type_or_enum(T t) {
 
 /**
  * Manually load a word from a range in either big or little endian byte order.
- * This will be used only if the endianness of the target platform is unknown at
- * compile time.
+ *
+ * This is only used at compile time.
  */
 template <std::endian endianness, std::unsigned_integral OutT, ranges::contiguous_range<uint8_t> InR>
 inline constexpr OutT fallback_load_any(InR&& in_range) {
@@ -232,8 +230,8 @@ inline constexpr OutT fallback_load_any(InR&& in_range) {
 
 /**
  * Manually store a word into a range in either big or little endian byte order.
- * This will be used only if the endianness of the target platform is unknown at
- * compile time.
+ *
+ * This will be used only at compile time.
  */
 template <std::endian endianness, std::unsigned_integral InT, ranges::contiguous_output_range<uint8_t> OutR>
 inline constexpr void fallback_store_any(InT in, OutR&& out_range) {
