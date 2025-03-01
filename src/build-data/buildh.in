@@ -104,10 +104,6 @@
 #define BOTAN_HAS_SANITIZER_%{i|upper}
 %{endfor}
 
-%{if endian}
-#define BOTAN_TARGET_CPU_IS_%{endian|upper}_ENDIAN
-%{endif}
-
 %{if with_debug_asserts}
 #define BOTAN_ENABLE_DEBUG_ASSERTS
 %{endif}
