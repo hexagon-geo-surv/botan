@@ -88,7 +88,7 @@ void SHA_256::compress_digest_x86_bmi2(digest_type& digest, std::span<const uint
          H = (digest[7] += H);
       }
 
-      blocks -= 2;
+      blocks -= 4;
    }
 
    if(blocks > 0) {
