@@ -35,13 +35,15 @@ void SHA_256::compress_digest_x86_bmi2(digest_type& digest, std::span<const uint
    uint32_t A = digest[0], B = digest[1], C = digest[2], D = digest[3], E = digest[4], F = digest[5], G = digest[6],
             H = digest[7];
 
-   alignas(64) uint32_t W0[64 * 2];
+   alignas(64) uint32_t W0[64 * 4];
 
    BufferSlicer in(input);
 
-   while(blocks >= 2) {
+   while(blocks >= 4) {
       load_be(std::span{W0, 16}, in.take<block_bytes>());
       load_be(std::span{W0 + 64, 16}, in.take<block_bytes>());
+      load_be(std::span{W0 + 128, 16}, in.take<block_bytes>());
+      load_be(std::span{W0 + 192, 16}, in.take<block_bytes>());
 
       for(size_t i = 16; i != 64; i += 2) {
          W0[i]   = W0[i - 16] + sigma<7, 18, 3>(W0[i - 15]) + W0[i - 7] + sigma<17, 19, 10>(W0[i - 2]);
@@ -49,14 +51,22 @@ void SHA_256::compress_digest_x86_bmi2(digest_type& digest, std::span<const uint
 
          W0[64+i]   = W0[64+i - 16] + sigma<7, 18, 3>(W0[64+i - 15]) + W0[64+i - 7] + sigma<17, 19, 10>(W0[64+i - 2]);
          W0[64+i+1] = W0[64+i - 15] + sigma<7, 18, 3>(W0[64+i - 14]) + W0[64+i - 6] + sigma<17, 19, 10>(W0[64+i - 1]);
+
+         W0[128+i]   = W0[128+i - 16] + sigma<7, 18, 3>(W0[128+i - 15]) + W0[128+i - 7] + sigma<17, 19, 10>(W0[128+i - 2]);
+         W0[128+i+1] = W0[128+i - 15] + sigma<7, 18, 3>(W0[128+i - 14]) + W0[128+i - 6] + sigma<17, 19, 10>(W0[128+i - 1]);
+
+         W0[192+i]   = W0[192+i - 16] + sigma<7, 18, 3>(W0[192+i - 15]) + W0[192+i - 7] + sigma<17, 19, 10>(W0[192+i - 2]);
+         W0[192+i+1] = W0[192+i - 15] + sigma<7, 18, 3>(W0[192+i - 14]) + W0[192+i - 6] + sigma<17, 19, 10>(W0[192+i - 1]);
       }
 
       for(size_t i = 0; i != 64; ++i) {
          W0[i] = W0[i] + RC[i];
          W0[64+i] = W0[64+i] + RC[i];
+         W0[128+i] = W0[128+i] + RC[i];
+         W0[192+i] = W0[192+i] + RC[i];
       }
 
-      for(size_t b = 0; b != 2; ++b) {
+      for(size_t b = 0; b != 4; ++b) {
          for(size_t r = 0; r != 64; r += 8) {
             SHA2_32_F(A, B, C, D, E, F, G, H, W0[64*b+r+0]);
             SHA2_32_F(H, A, B, C, D, E, F, G, W0[64*b+r+1]);
