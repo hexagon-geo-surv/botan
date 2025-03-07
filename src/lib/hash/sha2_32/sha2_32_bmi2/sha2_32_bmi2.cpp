@@ -43,9 +43,12 @@ void SHA_256::compress_digest_x86_bmi2(digest_type& digest, std::span<const uint
       load_be(std::span{W0, 16}, in.take<block_bytes>());
       load_be(std::span{W0 + 64, 16}, in.take<block_bytes>());
 
-      for(size_t i = 16; i != 64; ++i) {
-         W0[i] = W0[i - 16] + sigma<7, 18, 3>(W0[i - 15]) + W0[i - 7] + sigma<17, 19, 10>(W0[i - 2]);
-         W0[64+i] = W0[64+i - 16] + sigma<7, 18, 3>(W0[64+i - 15]) + W0[64+i - 7] + sigma<17, 19, 10>(W0[64+i - 2]);
+      for(size_t i = 16; i != 64; i += 2) {
+         W0[i]   = W0[i - 16] + sigma<7, 18, 3>(W0[i - 15]) + W0[i - 7] + sigma<17, 19, 10>(W0[i - 2]);
+         W0[i+1] = W0[i - 15] + sigma<7, 18, 3>(W0[i - 14]) + W0[i - 6] + sigma<17, 19, 10>(W0[i - 1]);
+
+         W0[64+i]   = W0[64+i - 16] + sigma<7, 18, 3>(W0[64+i - 15]) + W0[64+i - 7] + sigma<17, 19, 10>(W0[64+i - 2]);
+         W0[64+i+1] = W0[64+i - 15] + sigma<7, 18, 3>(W0[64+i - 14]) + W0[64+i - 6] + sigma<17, 19, 10>(W0[64+i - 1]);
       }
 
       for(size_t i = 0; i != 64; ++i) {
