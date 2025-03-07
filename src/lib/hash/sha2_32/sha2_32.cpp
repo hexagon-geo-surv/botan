@@ -30,7 +30,7 @@ std::string sha256_provider() {
 #endif
 
 #if defined(BOTAN_HAS_SHA2_32_X86_BMI2)
-   if(CPUID::has_bmi2()) {
+   if(CPUID::has_bmi2() && CPUID::has_avx2()) {
       return "bmi2";
    }
 #endif
@@ -57,7 +57,7 @@ void SHA_256::compress_digest(digest_type& digest, std::span<const uint8_t> inpu
 #endif
 
 #if defined(BOTAN_HAS_SHA2_32_X86_BMI2)
-   if(CPUID::has_bmi2()) {
+   if(CPUID::has_bmi2() && CPUID::has_avx2()) {
       return SHA_256::compress_digest_x86_bmi2(digest, input, blocks);
    }
 #endif
