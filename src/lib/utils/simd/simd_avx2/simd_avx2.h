@@ -77,6 +77,9 @@ class SIMD_8x32 final {
       BOTAN_AVX2_FN
       void store_be(uint8_t out[]) const noexcept { bswap().store_le(out); }
 
+      BOTAN_AVX2_FN
+      void store_be(uint32_t out[]) const noexcept { bswap().store_le(reinterpret_cast<uint8_t*>(out)); }
+
       template <size_t ROT>
       BOTAN_AVX2_FN SIMD_8x32 rotl() const noexcept
          requires(ROT > 0 && ROT < 32)
@@ -123,6 +126,18 @@ class SIMD_8x32 final {
          const SIMD_8x32 rot2 = this->rotr<11>();
          const SIMD_8x32 rot3 = this->rotr<25>();
          return rot1 ^ rot2 ^ rot3;
+      }
+
+      // This is σ_0 in FIPS-180 which uses upper and lowercase sigma we just
+      // use rho instead because there is more than one Greek letter guys
+      SIMD_8x32 BOTAN_AVX2_FN rho1() const noexcept {
+         return this->rotr<7>() ^ this->rotr<18>() ^ this->shr<3>();
+      }
+
+      // This is σ_1 in FIPS-180 which uses upper and lowercase sigma we just
+      // use rho instead because there is more than one Greek letter guys
+      SIMD_8x32 BOTAN_AVX2_FN rho2() const noexcept {
+         return this->rotr<17>() ^ this->rotr<19>() ^ this->shr<10>();
       }
 
       BOTAN_AVX2_FN

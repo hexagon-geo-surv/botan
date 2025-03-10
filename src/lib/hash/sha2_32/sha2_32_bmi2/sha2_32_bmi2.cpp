@@ -1,5 +1,5 @@
 /*
-* (C) 2018 Jack Lloyd
+* (C) 2018,2025 Jack Lloyd
 *
 * Botan is released under the Simplified BSD License (see license.txt)
 */
@@ -10,17 +10,11 @@
 #include <botan/internal/loadstor.h>
 #include <botan/internal/rotate.h>
 #include <botan/internal/sha2_32_f.h>
+#include <botan/internal/simd_avx2.h>
 #include <botan/internal/stl_util.h>
 
 namespace Botan {
 
-/*
-Your eyes do not decieve you; this is currently just a copy of the
-baseline SHA-256 implementation. Because we compile it with BMI2
-flags, GCC and Clang use the BMI2 instructions without further help.
-
-Likely instruction scheduling could be improved by using inline asm.
-*/
 void SHA_256::compress_digest_x86_bmi2(digest_type& digest, std::span<const uint8_t> input, size_t blocks) {
    alignas(64) const uint32_t RC[64] = {
       0x428A2F98, 0x71374491, 0xB5C0FBCF, 0xE9B5DBA5, 0x3956C25B, 0x59F111F1, 0x923F82A4, 0xAB1C5ED5,
@@ -35,47 +29,53 @@ void SHA_256::compress_digest_x86_bmi2(digest_type& digest, std::span<const uint
    uint32_t A = digest[0], B = digest[1], C = digest[2], D = digest[3], E = digest[4], F = digest[5], G = digest[6],
             H = digest[7];
 
-   alignas(64) uint32_t W0[64 * 4];
+   alignas(64) uint32_t W[64 * 4];
 
    BufferSlicer in(input);
 
    while(blocks >= 4) {
-      load_be(std::span{W0, 16}, in.take<block_bytes>());
-      load_be(std::span{W0 + 64, 16}, in.take<block_bytes>());
-      load_be(std::span{W0 + 128, 16}, in.take<block_bytes>());
-      load_be(std::span{W0 + 192, 16}, in.take<block_bytes>());
+      load_be(std::span{W, 16}, in.take<block_bytes>());
+      load_be(std::span{W + 64, 16}, in.take<block_bytes>());
+      load_be(std::span{W + 128, 16}, in.take<block_bytes>());
+      load_be(std::span{W + 192, 16}, in.take<block_bytes>());
 
       for(size_t i = 16; i != 64; i += 2) {
-         W0[i]   = W0[i - 16] + sigma<7, 18, 3>(W0[i - 15]) + W0[i - 7] + sigma<17, 19, 10>(W0[i - 2]);
-         W0[i+1] = W0[i - 15] + sigma<7, 18, 3>(W0[i - 14]) + W0[i - 6] + sigma<17, 19, 10>(W0[i - 1]);
+         SIMD_8x32 r0(W[i-16], W[i-15], W[64+i-16], W[64+i-15], W[128+i-16], W[128+i-15], W[192+i-16], W[192+i-15]);
+         SIMD_8x32 r1(W[i-15], W[i-14], W[64+i-15], W[64+i-14], W[128+i-15], W[128+i-14], W[192+i-15], W[192+i-14]);
+         SIMD_8x32 r2(W[i-7], W[i-6], W[64+i-7], W[64+i-6], W[128+i-7], W[128+i-6], W[192+i-7], W[192+i-6]);
+         SIMD_8x32 r3(W[i-2], W[i-1], W[64+i-2], W[64+i-1], W[128+i-2], W[128+i-1], W[192+i-2], W[192+i-1]);
 
-         W0[64+i]   = W0[64+i - 16] + sigma<7, 18, 3>(W0[64+i - 15]) + W0[64+i - 7] + sigma<17, 19, 10>(W0[64+i - 2]);
-         W0[64+i+1] = W0[64+i - 15] + sigma<7, 18, 3>(W0[64+i - 14]) + W0[64+i - 6] + sigma<17, 19, 10>(W0[64+i - 1]);
+         SIMD_8x32 z = r0 + r1.rho1() + r2 + r3.rho2();
+         uint32_t Z[8];
+         z.store_le(reinterpret_cast<uint8_t*>(Z));
 
-         W0[128+i]   = W0[128+i - 16] + sigma<7, 18, 3>(W0[128+i - 15]) + W0[128+i - 7] + sigma<17, 19, 10>(W0[128+i - 2]);
-         W0[128+i+1] = W0[128+i - 15] + sigma<7, 18, 3>(W0[128+i - 14]) + W0[128+i - 6] + sigma<17, 19, 10>(W0[128+i - 1]);
-
-         W0[192+i]   = W0[192+i - 16] + sigma<7, 18, 3>(W0[192+i - 15]) + W0[192+i - 7] + sigma<17, 19, 10>(W0[192+i - 2]);
-         W0[192+i+1] = W0[192+i - 15] + sigma<7, 18, 3>(W0[192+i - 14]) + W0[192+i - 6] + sigma<17, 19, 10>(W0[192+i - 1]);
+         W[i] = Z[0];
+         W[i+1] = Z[1];
+         W[64+i] = Z[2];
+         W[64+i+1] = Z[3];
+         W[128+i] = Z[4];
+         W[128+i+1] = Z[5];
+         W[192+i] = Z[6];
+         W[192+i+1] = Z[7];
       }
 
       for(size_t i = 0; i != 64; ++i) {
-         W0[i] = W0[i] + RC[i];
-         W0[64+i] = W0[64+i] + RC[i];
-         W0[128+i] = W0[128+i] + RC[i];
-         W0[192+i] = W0[192+i] + RC[i];
+         W[i] = W[i] + RC[i];
+         W[64+i] = W[64+i] + RC[i];
+         W[128+i] = W[128+i] + RC[i];
+         W[192+i] = W[192+i] + RC[i];
       }
 
       for(size_t b = 0; b != 4; ++b) {
          for(size_t r = 0; r != 64; r += 8) {
-            SHA2_32_F(A, B, C, D, E, F, G, H, W0[64*b+r+0]);
-            SHA2_32_F(H, A, B, C, D, E, F, G, W0[64*b+r+1]);
-            SHA2_32_F(G, H, A, B, C, D, E, F, W0[64*b+r+2]);
-            SHA2_32_F(F, G, H, A, B, C, D, E, W0[64*b+r+3]);
-            SHA2_32_F(E, F, G, H, A, B, C, D, W0[64*b+r+4]);
-            SHA2_32_F(D, E, F, G, H, A, B, C, W0[64*b+r+5]);
-            SHA2_32_F(C, D, E, F, G, H, A, B, W0[64*b+r+6]);
-            SHA2_32_F(B, C, D, E, F, G, H, A, W0[64*b+r+7]);
+            SHA2_32_F(A, B, C, D, E, F, G, H, W[64*b+r+0]);
+            SHA2_32_F(H, A, B, C, D, E, F, G, W[64*b+r+1]);
+            SHA2_32_F(G, H, A, B, C, D, E, F, W[64*b+r+2]);
+            SHA2_32_F(F, G, H, A, B, C, D, E, W[64*b+r+3]);
+            SHA2_32_F(E, F, G, H, A, B, C, D, W[64*b+r+4]);
+            SHA2_32_F(D, E, F, G, H, A, B, C, W[64*b+r+5]);
+            SHA2_32_F(C, D, E, F, G, H, A, B, W[64*b+r+6]);
+            SHA2_32_F(B, C, D, E, F, G, H, A, W[64*b+r+7]);
          }
 
          A = (digest[0] += A);
@@ -91,29 +91,29 @@ void SHA_256::compress_digest_x86_bmi2(digest_type& digest, std::span<const uint
       blocks -= 4;
    }
 
-   if(blocks > 0) {
-      load_be(std::span{W0, 16}, in.take<block_bytes>());
+   while(blocks > 0) {
+      load_be(std::span{W, 16}, in.take<block_bytes>());
 
       for(size_t i = 16; i != 64; ++i) {
-         const uint32_t sigma0_15 = sigma<7, 18, 3>(W0[i - 15]);
-         const uint32_t sigma1_2 = sigma<17, 19, 10>(W0[i - 2]);
-         W0[i] = W0[i - 16] + sigma0_15 + W0[i - 7] + sigma1_2;
+         const uint32_t sigma0_15 = sigma<7, 18, 3>(W[i - 15]);
+         const uint32_t sigma1_2 = sigma<17, 19, 10>(W[i - 2]);
+         W[i] = W[i - 16] + sigma0_15 + W[i - 7] + sigma1_2;
       }
 
       for(size_t i = 0; i != 64; ++i) {
-         W0[i] = W0[i] + RC[i];
+         W[i] = W[i] + RC[i];
       }
       // clang-format off
 
       for(size_t r = 0; r != 64; r += 8) {
-         SHA2_32_F(A, B, C, D, E, F, G, H, W0[r+0]);
-         SHA2_32_F(H, A, B, C, D, E, F, G, W0[r+1]);
-         SHA2_32_F(G, H, A, B, C, D, E, F, W0[r+2]);
-         SHA2_32_F(F, G, H, A, B, C, D, E, W0[r+3]);
-         SHA2_32_F(E, F, G, H, A, B, C, D, W0[r+4]);
-         SHA2_32_F(D, E, F, G, H, A, B, C, W0[r+5]);
-         SHA2_32_F(C, D, E, F, G, H, A, B, W0[r+6]);
-         SHA2_32_F(B, C, D, E, F, G, H, A, W0[r+7]);
+         SHA2_32_F(A, B, C, D, E, F, G, H, W[r+0]);
+         SHA2_32_F(H, A, B, C, D, E, F, G, W[r+1]);
+         SHA2_32_F(G, H, A, B, C, D, E, F, W[r+2]);
+         SHA2_32_F(F, G, H, A, B, C, D, E, W[r+3]);
+         SHA2_32_F(E, F, G, H, A, B, C, D, W[r+4]);
+         SHA2_32_F(D, E, F, G, H, A, B, C, W[r+5]);
+         SHA2_32_F(C, D, E, F, G, H, A, B, W[r+6]);
+         SHA2_32_F(B, C, D, E, F, G, H, A, W[r+7]);
       }
 
       // clang-format on
@@ -126,6 +126,8 @@ void SHA_256::compress_digest_x86_bmi2(digest_type& digest, std::span<const uint
       F = (digest[5] += F);
       G = (digest[6] += G);
       H = (digest[7] += H);
+
+      blocks -= 1;
    }
 }
 

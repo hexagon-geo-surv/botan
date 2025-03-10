@@ -15,4 +15,3 @@ avx2
 <requires>
 cpuid
 </requires>
-
