@@ -13,6 +13,10 @@
 #include <botan/internal/rotate.h>
 #include <botan/internal/stl_util.h>
 
+#if defined(BOTAN_HAS_CPUID)
+   #include <botan/internal/cpuid.h>
+#endif
+
 namespace Botan {
 
 namespace {
@@ -79,6 +83,12 @@ inline uint32_t SM3_E(uint32_t W0, uint32_t W7, uint32_t W13, uint32_t W3, uint3
 * SM3 Compression Function
 */
 void SM3::compress_n(digest_type& digest, std::span<const uint8_t> input, size_t blocks) {
+#if defined(BOTAN_HAS_SM3_X86)
+   if(CPUID::has_intel_sm3()) {
+      return compress_n_x86(digest, input, blocks);
+   }
+#endif
+
    uint32_t A = digest[0], B = digest[1], C = digest[2], D = digest[3], E = digest[4], F = digest[5], G = digest[6],
             H = digest[7];
    std::array<uint32_t, 16> W;

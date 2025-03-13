@@ -1,0 +1,23 @@
+<defines>
+SM3_X86 -> 20250313
+</defines>
+
+<module_info>
+name -> "SM3 x86"
+brief -> "SM3 using Intel SM3 extension"
+</module_info>
+
+<requires>
+cpuid
+simd
+</requires>
+
+<isa>
+sm3
+</isa>
+
+<cc>
+gcc:14
+clang:17
+msvc
+</cc>
