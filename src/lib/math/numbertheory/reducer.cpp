@@ -58,6 +58,50 @@ BigInt Modular_Reducer::reduce(const BigInt& x) const {
    return r;
 }
 
+namespace {
+
+BigInt barrett_reduce(size_t mod_words,
+                      const BigInt& modulus,
+                      const BigInt& mu,
+                      std::span<const word> x_words,
+                      size_t x_sw,
+                      secure_vector<word>& ws) {
+   // Divide x by 2^(W*(mw - 1)) then multiply by mu
+   BigInt r = BigInt::_from_words(secure_vector<word>(x_words.begin(), x_words.end()));
+   r >>= (WordInfo<word>::bits * (mod_words - 1));
+
+   r.mul(mu, ws);
+   r >>= (WordInfo<word>::bits * (mod_words + 1));
+
+   // TODO add masked mul to avoid computing high bits
+   r.mul(modulus, ws);
+   r.mask_bits(WordInfo<word>::bits * (mod_words + 1));
+
+   r.rev_sub(x_words.data(), std::min(x_sw, mod_words + 1), ws);
+
+   /*
+   * If r < 0 then we must add b^(k+1) where b = 2^w. To avoid a
+   * side channel perform the addition unconditionally, with ws set
+   * to either b^(k+1) or else 0.
+   */
+   const word r_neg = r.is_negative();
+
+   if(ws.size() < mod_words + 2) {
+      ws.resize(mod_words + 2);
+   }
+   clear_mem(ws.data(), ws.size());
+   ws[mod_words + 1] = r_neg;
+
+   r.add(ws.data(), mod_words + 2, BigInt::Positive);
+
+   // Per HAC this step requires at most 2 subtractions
+   r.ct_reduce_below(modulus, ws, 2);
+
+   return r;
+}
+
+}
+
 BigInt Modular_Reducer::multiply(const BigInt& x, const BigInt& y) const {
    // TODO(Botan4) remove this block; we'll require 0 <= x < m && 0 <= y < m
    if(x > m_modulus || y > m_modulus || x.is_negative() || y.is_negative()) {
@@ -135,37 +179,7 @@ void Modular_Reducer::reduce(BigInt& t1, const BigInt& x, secure_vector<word>& w
       return;
    }
 
-   // Divide x by 2^(W*(mw - 1)) then multiply by mu
-   t1 = x;
-   t1.set_sign(BigInt::Positive);
-   t1 >>= (WordInfo<word>::bits * (m_mod_words - 1));
-
-   t1.mul(m_mu, ws);
-   t1 >>= (WordInfo<word>::bits * (m_mod_words + 1));
-
-   // TODO add masked mul to avoid computing high bits
-   t1.mul(m_modulus, ws);
-   t1.mask_bits(WordInfo<word>::bits * (m_mod_words + 1));
-
-   t1.rev_sub(x._data(), std::min(x_sw, m_mod_words + 1), ws);
-
-   /*
-   * If t1 < 0 then we must add b^(k+1) where b = 2^w. To avoid a
-   * side channel perform the addition unconditionally, with ws set
-   * to either b^(k+1) or else 0.
-   */
-   const word t1_neg = t1.is_negative();
-
-   if(ws.size() < m_mod_words + 2) {
-      ws.resize(m_mod_words + 2);
-   }
-   clear_mem(ws.data(), ws.size());
-   ws[m_mod_words + 1] = t1_neg;
-
-   t1.add(ws.data(), m_mod_words + 2, BigInt::Positive);
-
-   // Per HAC this step requires at most 2 subtractions
-   t1.ct_reduce_below(m_modulus, ws, 2);
+   t1 = barrett_reduce(m_mod_words, m_modulus, m_mu, x._as_span(), x_sw, ws);
 
    // We do not guarantee constant-time behavior in this case
    // TODO(Botan4) can be removed entirely once x being non-negative is enforced
