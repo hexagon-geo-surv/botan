@@ -8,8 +8,8 @@
 
 #include <botan/numthry.h>
 
-#include <botan/reducer.h>
 #include <botan/rng.h>
+#include <botan/internal/barrett.h>
 #include <botan/internal/ct_utils.h>
 #include <botan/internal/divide.h>
 #include <botan/internal/monty.h>
@@ -39,7 +39,7 @@ BigInt sqrt_modulo_prime(const BigInt& a, const BigInt& p) {
       return BigInt::from_s32(-1);
    }
 
-   auto mod_p = Modular_Reducer::for_public_modulus(p);
+   auto mod_p = Barrett_Reduction::for_public_modulus(p);
    auto monty_p = std::make_shared<Montgomery_Params>(p, mod_p);
 
    // If p == 3 (mod 4) there is a simple solution
@@ -293,7 +293,7 @@ BigInt power_mod(const BigInt& base, const BigInt& exp, const BigInt& mod) {
       return BigInt::zero();
    }
 
-   auto reduce_mod = Modular_Reducer::for_secret_modulus(mod);
+   auto reduce_mod = Barrett_Reduction::for_secret_modulus(mod);
 
    const size_t exp_bits = exp.bits();
 
@@ -369,7 +369,7 @@ bool is_prime(const BigInt& n, RandomNumberGenerator& rng, size_t prob, bool is_
       return std::binary_search(PRIMES, PRIMES + PRIME_TABLE_SIZE, num);
    }
 
-   auto mod_n = Modular_Reducer::for_secret_modulus(n);
+   auto mod_n = Barrett_Reduction::for_secret_modulus(n);
 
    if(rng.is_seeded()) {
       const size_t t = miller_rabin_test_iterations(n_bits, prob, is_random);
