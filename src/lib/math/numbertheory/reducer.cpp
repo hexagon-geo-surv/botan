@@ -71,12 +71,10 @@ namespace {
 secure_vector<word> barrett_init_shift(size_t mod_words, std::span<const word> x_words) {
    secure_vector<word> r(mod_words + 1);
 
-   if(x_words.size() >= 2 * mod_words) {
-      r.assign(x_words.data() + (mod_words - 1), x_words.data() + 2 * mod_words);
-   } else if(x_words.size() >= mod_words - 1) {
-      copy_mem(r.data(), x_words.data() + (mod_words - 1), x_words.size() - (mod_words - 1));
-   } else {
-      printf("smol bean\n");
+   const size_t usable_words = std::min(x_words.size(), 2 * mod_words);
+
+   if(usable_words >= mod_words - 1) {
+      copy_mem(r.data(), x_words.data() + (mod_words - 1), usable_words - (mod_words - 1));
    }
 
    return r;
@@ -151,8 +149,6 @@ BigInt Modular_Reducer::multiply(const BigInt& x, const BigInt& y) const {
 
    secure_vector<word> ws(2 * m_mod_words);
 
-   // First compute x*y
-
    BigInt xy = [&]() {
       secure_vector<word> z(2 * m_mod_words);
 
@@ -167,7 +163,7 @@ BigInt Modular_Reducer::multiply(const BigInt& x, const BigInt& y) const {
                  ws.data(),
                  ws.size());
 
-      return BigInt::_from_words(std::move(z));
+      return barrett_reduce(m_mod_words, m_modulus, m_mu, x._as_span(), ws);
    }();
 
    // TODO(Botan4) remove this; instead require x and y be positive
@@ -181,7 +177,7 @@ BigInt Modular_Reducer::multiply(const BigInt& x, const BigInt& y) const {
 BigInt Modular_Reducer::square(const BigInt& x) const {
    // TODO(Botan4) remove this block; we'll require 0 <= x < m
    if(x.is_negative() || x >= m_modulus) {
-      return ct_modulo(x * x);
+      return ct_modulo(x * x, m_modulus);
    }
 
    BOTAN_DEBUG_ASSERT(x.is_positive());
