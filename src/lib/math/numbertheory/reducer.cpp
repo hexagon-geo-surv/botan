@@ -59,6 +59,12 @@ BigInt Modular_Reducer::reduce(const BigInt& x) const {
 }
 
 BigInt Modular_Reducer::multiply(const BigInt& x, const BigInt& y) const {
+
+   // TODO(Botan4) remove this block; we'll require x < m && y < m
+   if(x.sig_words() > m_mod_words || y.sig_words() > m_mod_words) {
+      return reduce(x * y);
+   }
+
    BOTAN_ASSERT_NOMSG(x < m_modulus);  // TODO DEBUG_ASSERT
    BOTAN_ASSERT_NOMSG(y < m_modulus); // TODO DEBUG_ASSERT
 
@@ -85,6 +91,7 @@ BigInt Modular_Reducer::multiply(const BigInt& x, const BigInt& y) const {
       return BigInt::_from_words(std::move(z));
    }();
 
+   // TODO(Botan4) remove this; instead require x and y be positive
    xy.cond_flip_sign(xy.is_nonzero() && x.sign() != y.sign());
 
    BOTAN_ASSERT_NOMSG(xy == (x * y));

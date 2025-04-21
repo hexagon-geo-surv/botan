@@ -215,9 +215,6 @@ void BigInt::Data::mask_bits(size_t n) {
    }
 }
 
-static bool print_sig_words = false;
-void set_print_sig_words(bool b) { print_sig_words = b; }
-
 size_t BigInt::Data::calc_sig_words() const {
    const size_t sz = m_reg.size();
    size_t sig = sz;
@@ -228,10 +225,6 @@ size_t BigInt::Data::calc_sig_words() const {
       const word w = m_reg[sz - i - 1];
       sub &= ct_is_zero(w);
       sig -= sub;
-   }
-
-   if(print_sig_words) {
-      printf("sig_words = %zu size = %zu\n", sig, sz);
    }
 
    /*

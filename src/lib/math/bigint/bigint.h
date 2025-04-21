@@ -19,8 +19,6 @@ namespace Botan {
 
 class RandomNumberGenerator;
 
-BOTAN_UNSTABLE_API void set_print_sig_words(bool b);
-
 /**
  * Arbitrary precision integer
  */
