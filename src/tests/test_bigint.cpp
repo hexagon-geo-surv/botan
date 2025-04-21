@@ -11,7 +11,7 @@
    #include "test_rng.h"
    #include <botan/bigint.h>
    #include <botan/numthry.h>
-   #include <botan/reducer.h>
+   #include <botan/internal/barrett.h>
    #include <botan/internal/ct_utils.h>
    #include <botan/internal/divide.h>
    #include <botan/internal/fmt.h>
@@ -455,10 +455,10 @@ class BigInt_Mod_Test final : public Text_Based_Test {
          e %= b;
          result.test_eq("a %= b", e, expected);
 
-         auto mod_b_pub = Botan::Modular_Reducer::for_public_modulus(b);
+         auto mod_b_pub = Botan::Barrett_Reduction::for_public_modulus(b);
          result.test_eq("Barrett public", mod_b_pub.reduce(a), expected);
 
-         auto mod_b_sec = Botan::Modular_Reducer::for_secret_modulus(b);
+         auto mod_b_sec = Botan::Barrett_Reduction::for_secret_modulus(b);
          result.test_eq("Barrett secret", mod_b_sec.reduce(a), expected);
 
          // if b fits into a Botan::word test %= operator for words
@@ -770,7 +770,7 @@ class Lucas_Primality_Test final : public Test {
          Test::Result result("Lucas primality test");
 
          for(uint32_t i = 3; i <= lucas_max; i += 2) {
-            auto mod_i = Botan::Modular_Reducer::for_public_modulus(i);
+            auto mod_i = Botan::Barrett_Reduction::for_public_modulus(i);
             const bool passes_lucas = Botan::is_lucas_probable_prime(i, mod_i);
             const bool is_prime = Botan::is_prime(i, this->rng());
 

@@ -7,7 +7,7 @@
 #include "fuzzers.h"
 
 #include <botan/numthry.h>
-#include <botan/reducer.h>
+#include <botan/internal/barrett.h>
 #include <botan/internal/divide.h>
 
 void fuzz(std::span<const uint8_t> in) {
@@ -37,7 +37,7 @@ void fuzz(std::span<const uint8_t> in) {
 
    const Botan::BigInt ref = x % p;
 
-   const Botan::Modular_Reducer mod_p(p);
+   const Botan::Barrett_Reduction mod_p(p);
    const Botan::BigInt z = mod_p.reduce(x);
 
    const Botan::BigInt ct = ct_modulo(x, p);

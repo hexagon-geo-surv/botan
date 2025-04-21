@@ -7,13 +7,13 @@
 #include "fuzzers.h"
 
 #include <botan/numthry.h>
-#include <botan/reducer.h>
+#include <botan/internal/barrett.h>
 
 void fuzz(std::span<const uint8_t> in) {
    // Ressol is mostly used for ECC point decompression so best to test smaller sizes
    static const size_t p_bits = 256;
    static const Botan::BigInt p = random_prime(fuzzer_rng(), p_bits);
-   static const Botan::Modular_Reducer mod_p(p);
+   static const Botan::Barrett_Reduction mod_p(p);
 
    if(in.size() > p_bits / 8) {
       return;
