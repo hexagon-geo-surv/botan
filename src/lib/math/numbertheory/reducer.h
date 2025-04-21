@@ -77,7 +77,7 @@ class BOTAN_PUBLIC_API(2, 0) Modular_Reducer final {
       *
       * ws is a temporary workspace.
       *
-      * TODO(Botan4) remove this or make it private
+      * TODO(Botan4) make this function private
       */
       void reduce(BigInt& out, const BigInt& x, secure_vector<word>& ws) const;
 
