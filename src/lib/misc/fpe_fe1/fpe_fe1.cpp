@@ -156,7 +156,7 @@ BigInt FPE_FE1::encrypt(const BigInt& input, const uint8_t tweak[], size_t tweak
       ct_divide(X, m_b, L, R);
       Fi = F(R, i, tweak_mac, tmp);
       X = m_a * R + ct_modulo(L + Fi, m_a);
-  }
+   }
 
    return X;
 }

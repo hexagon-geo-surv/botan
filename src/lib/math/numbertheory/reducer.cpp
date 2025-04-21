@@ -1,6 +1,6 @@
 /*
 * Modular Reducer
-* (C) 1999-2011,2018 Jack Lloyd
+* (C) 1999-2011,2018,2025 Jack Lloyd
 *
 * Botan is released under the Simplified BSD License (see license.txt)
 */
@@ -59,7 +59,6 @@ BigInt Modular_Reducer::reduce(const BigInt& x) const {
 }
 
 BigInt Modular_Reducer::multiply(const BigInt& x, const BigInt& y) const {
-
    // TODO(Botan4) remove this block; we'll require 0 <= x < m && 0 <= y < m
    if(x > m_modulus || y > m_modulus || x.is_negative() || y.is_negative()) {
       return reduce(x * y);
@@ -83,7 +82,8 @@ BigInt Modular_Reducer::multiply(const BigInt& x, const BigInt& y) const {
                  y._data(),
                  y.size(),
                  std::min(y.size(), m_mod_words),
-                 ws.data(), ws.size());
+                 ws.data(),
+                 ws.size());
 
       return BigInt::_from_words(std::move(z));
    }();
@@ -97,7 +97,7 @@ BigInt Modular_Reducer::multiply(const BigInt& x, const BigInt& y) const {
 }
 
 BigInt Modular_Reducer::square(const BigInt& x) const {
-   BOTAN_ASSERT_NOMSG(x < m_modulus); // TODO DEBUG_ASSERT
+   BOTAN_ASSERT_NOMSG(x < m_modulus);  // TODO DEBUG_ASSERT
 
    secure_vector<word> ws(2 * m_mod_words);
 
@@ -105,12 +105,7 @@ BigInt Modular_Reducer::square(const BigInt& x) const {
    BigInt x2 = [&]() {
       secure_vector<word> z(2 * m_mod_words);
 
-      bigint_sqr(z.data(),
-                 z.size(),
-                 x._data(),
-                 x.size(),
-                 std::min(x.size(), m_mod_words),
-                 ws.data(), ws.size());
+      bigint_sqr(z.data(), z.size(), x._data(), x.size(), std::min(x.size(), m_mod_words), ws.data(), ws.size());
 
       return BigInt::_from_words(std::move(z));
    }();

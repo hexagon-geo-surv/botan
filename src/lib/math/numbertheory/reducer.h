@@ -1,6 +1,6 @@
 /*
 * Modular Reducer
-* (C) 1999-2010 Jack Lloyd
+* (C) 1999-2010,2025 Jack Lloyd
 *
 * Botan is released under the Simplified BSD License (see license.txt)
 */
