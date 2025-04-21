@@ -93,8 +93,23 @@ BigInt barrett_reduce(size_t mod_words,
 
    r.add(ws.data(), mod_words + 2, BigInt::Positive);
 
+   BOTAN_DEBUG_ASSERT(r.is_positive());
+
+   r.grow_to(mod_words);
+
+   const size_t sz = r.size();
+
+   ws.resize(sz);
+
+   clear_mem(ws.data(), sz);
+
    // Per HAC this step requires at most 2 subtractions
-   r.ct_reduce_below(modulus, ws, 2);
+   const size_t bound = 2;
+
+   for(size_t i = 0; i != bound; ++i) {
+      word borrow = bigint_sub3(ws.data(), r._data(), sz, modulus._data(), mod_words);
+      CT::Mask<word>::is_zero(borrow).select_n(r.mutable_data(), ws.data(), r._data(), sz);
+   }
 
    return r;
 }
