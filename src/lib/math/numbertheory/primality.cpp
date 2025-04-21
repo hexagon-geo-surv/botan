@@ -82,7 +82,7 @@ bool is_lucas_probable_prime(const BigInt& C, const Modular_Reducer& mod_C) {
       U2.ct_cond_add(U2.is_odd(), C);
       U2 >>= 1;
 
-      V2 = mod_C.reduce(Vt + Ut * D);
+      V2 = mod_C.reduce(Vt + mod_C.multiply(Ut, D));
       V2.ct_cond_add(V2.is_odd(), C);
       V2 >>= 1;
 

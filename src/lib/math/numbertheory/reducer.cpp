@@ -60,15 +60,42 @@ BigInt Modular_Reducer::reduce(const BigInt& x) const {
 
 namespace {
 
+/*
+* Return x_words.subspan(mod_words - 1) in a secure_vector of size mod_words + 1
+*
+* This function assumes that the significant size of x_words (ie the number of
+* words with a value other than zero) is at most 2 * mod_words. In any case, any
+* larger value cannot be reduced using Barrett reduction; callers should have
+* already checked for this and delegated to ct_modulo instead.
+*/
+secure_vector<word> barrett_init_shift(size_t mod_words, std::span<const word> x_words) {
+   secure_vector<word> r(mod_words + 1);
+
+   if(x_words.size() >= 2 * mod_words) {
+      r.assign(x_words.data() + (mod_words - 1), x_words.data() + 2 * mod_words);
+   } else if(x_words.size() >= mod_words - 1) {
+      copy_mem(r.data(), x_words.data() + (mod_words - 1), x_words.size() - (mod_words - 1));
+   } else {
+      printf("smol bean\n");
+   }
+
+   return r;
+}
+
 BigInt barrett_reduce(size_t mod_words,
                       const BigInt& modulus,
                       const BigInt& mu,
                       std::span<const word> x_words,
                       secure_vector<word>& ws) {
-   // Divide x by 2^(W*(mw - 1)) then multiply by mu
-   BigInt r = BigInt::_from_words(x_words);
+   // Divide x by 2^(W*(mw - 1)) which is equivalent to ignoring the low words
+#if 0
+   BigInt r = BigInt::_from_words(x_words.subspan(mod_words - 1));
    r >>= (WordInfo<word>::bits * (mod_words - 1));
+#else
+   BigInt r = BigInt::_from_words(barrett_init_shift(mod_words, x_words));
+#endif
 
+   // Now multiply by mu and divide again
    r.mul(mu, ws);
    r >>= (WordInfo<word>::bits * (mod_words + 1));
 
@@ -94,21 +121,16 @@ BigInt barrett_reduce(size_t mod_words,
    r.add(ws.data(), mod_words + 2, BigInt::Positive);
 
    BOTAN_DEBUG_ASSERT(r.is_positive());
+   BOTAN_DEBUG_ASSERT(r.size() >= mod_words + 1);
 
-   r.grow_to(mod_words);
-
-   const size_t sz = r.size();
-
-   ws.resize(sz);
-
-   clear_mem(ws.data(), sz);
+   clear_mem(ws.data(), ws.size());
 
    // Per HAC this step requires at most 2 subtractions
    const size_t bound = 2;
 
    for(size_t i = 0; i != bound; ++i) {
-      word borrow = bigint_sub3(ws.data(), r._data(), sz, modulus._data(), mod_words);
-      CT::Mask<word>::is_zero(borrow).select_n(r.mutable_data(), ws.data(), r._data(), sz);
+      word borrow = bigint_sub3(ws.data(), r._data(), mod_words + 1, modulus._data(), mod_words);
+      CT::Mask<word>::is_zero(borrow).select_n(r.mutable_data(), ws.data(), r._data(), mod_words + 1);
    }
 
    return r;
@@ -119,10 +141,12 @@ BigInt barrett_reduce(size_t mod_words,
 BigInt Modular_Reducer::multiply(const BigInt& x, const BigInt& y) const {
    // TODO(Botan4) remove this block; we'll require 0 <= x < m && 0 <= y < m
    if(x > m_modulus || y > m_modulus || x.is_negative() || y.is_negative()) {
-      return reduce(x * y);
+      return ct_modulo(x * y, m_modulus);
    }
 
+   BOTAN_DEBUG_ASSERT(x.is_positive());
    BOTAN_DEBUG_ASSERT(x < m_modulus);
+   BOTAN_DEBUG_ASSERT(y.is_positive());
    BOTAN_DEBUG_ASSERT(y < m_modulus);
 
    secure_vector<word> ws(2 * m_mod_words);
@@ -155,7 +179,13 @@ BigInt Modular_Reducer::multiply(const BigInt& x, const BigInt& y) const {
 }
 
 BigInt Modular_Reducer::square(const BigInt& x) const {
-   BOTAN_ASSERT_NOMSG(x < m_modulus);  // TODO DEBUG_ASSERT
+   // TODO(Botan4) remove this block; we'll require 0 <= x < m
+   if(x.is_negative() || x >= m_modulus) {
+      return ct_modulo(x * x);
+   }
+
+   BOTAN_DEBUG_ASSERT(x.is_positive());
+   BOTAN_DEBUG_ASSERT(x < m_modulus);
 
    secure_vector<word> ws(2 * m_mod_words);
 
