@@ -115,8 +115,6 @@ BigInt Modular_Reducer::square(const BigInt& x) const {
       return BigInt::_from_words(std::move(z));
    }();
 
-   BOTAN_ASSERT_NOMSG(x2 == (x * x));
-
    BigInt r;
    reduce(r, x2, ws);
    return r;
