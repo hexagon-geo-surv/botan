@@ -64,10 +64,9 @@ BigInt barrett_reduce(size_t mod_words,
                       const BigInt& modulus,
                       const BigInt& mu,
                       std::span<const word> x_words,
-                      size_t x_sw,
                       secure_vector<word>& ws) {
    // Divide x by 2^(W*(mw - 1)) then multiply by mu
-   BigInt r = BigInt::_from_words(secure_vector<word>(x_words.begin(), x_words.end()));
+   BigInt r = BigInt::_from_words(x_words);
    r >>= (WordInfo<word>::bits * (mod_words - 1));
 
    r.mul(mu, ws);
@@ -77,7 +76,7 @@ BigInt barrett_reduce(size_t mod_words,
    r.mul(modulus, ws);
    r.mask_bits(WordInfo<word>::bits * (mod_words + 1));
 
-   r.rev_sub(x_words.data(), std::min(x_sw, mod_words + 1), ws);
+   r.rev_sub(x_words.data(), std::min(x_words.size(), mod_words + 1), ws);
 
    /*
    * If r < 0 then we must add b^(k+1) where b = 2^w. To avoid a
@@ -179,7 +178,7 @@ void Modular_Reducer::reduce(BigInt& t1, const BigInt& x, secure_vector<word>& w
       return;
    }
 
-   t1 = barrett_reduce(m_mod_words, m_modulus, m_mu, x._as_span(), x_sw, ws);
+   t1 = barrett_reduce(m_mod_words, m_modulus, m_mu, x._as_span(), ws);
 
    // We do not guarantee constant-time behavior in this case
    // TODO(Botan4) can be removed entirely once x being non-negative is enforced

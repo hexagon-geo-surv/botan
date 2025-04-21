@@ -959,6 +959,18 @@ class BOTAN_PUBLIC_API(2, 0) BigInt final {
       }
 
       /**
+       * Create a BigInt from a span of words
+       *
+       * @warning this is an implementation detail which is not for
+       * public use and not covered by SemVer.
+       */
+      static BigInt _from_words(std::span<const word> words) {
+         BigInt bn;
+         bn.m_data.set_words(words.data(), words.size());
+         return bn;
+      }
+
+      /**
        * Mark this BigInt as holding secret data
        *
        * @warning this is an implementation detail which is not for
