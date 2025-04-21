@@ -120,52 +120,27 @@ BigInt Modular_Reducer::square(const BigInt& x) const {
    return r;
 }
 
-namespace {
-
-/*
-* Like if(cnd) x.rev_sub(...) but in const time
-*/
-void cnd_rev_sub(bool cnd, BigInt& x, const word y[], size_t y_sw, secure_vector<word>& ws) {
-   if(x.sign() != BigInt::Positive) {
-      throw Invalid_State("BigInt::sub_rev requires this is positive");
-   }
-
-   const size_t x_sw = x.sig_words();
-
-   const size_t max_words = std::max(x_sw, y_sw);
-   ws.resize(std::max(x_sw, y_sw));
-   clear_mem(ws.data(), ws.size());
-   x.grow_to(max_words);
-
-   const int32_t relative_size = bigint_sub_abs(ws.data(), x._data(), x_sw, y, y_sw);
-
-   x.cond_flip_sign((relative_size > 0) && cnd);
-   bigint_cnd_swap(static_cast<word>(cnd), x.mutable_data(), ws.data(), max_words);
-}
-
-}  // namespace
-
 void Modular_Reducer::reduce(BigInt& t1, const BigInt& x, secure_vector<word>& ws) const {
    // TODO(Botan4) this can be removed once the default constructor is gone
    if(m_mod_words == 0) {
       throw Invalid_State("Modular_Reducer: Never initalized");
    }
 
-   if(x.is_negative()) {
-      printf("neg x\n");
-   }
-
    BOTAN_ARG_CHECK(&t1 != &x, "Arguments cannot alias");
+
+   // TODO(Botan4) add this requirement for callers
+   // BOTAN_ARG_CHECK(x.is_positive(), "Argument must be positive");
 
    const size_t x_sw = x.sig_words();
 
+   // TODO(Botan4) can be removed entirely once the restriction is enforced
    if(x_sw > 2 * m_mod_words) {
       // too big, fall back to slow boat division
       t1 = ct_modulo(x, m_modulus);
-      printf("chonky\n");
       return;
    }
 
+   // Divide x by 2^(W*(mw - 1)) then multiply by mu
    t1 = x;
    t1.set_sign(BigInt::Positive);
    t1 >>= (WordInfo<word>::bits * (m_mod_words - 1));
@@ -197,7 +172,13 @@ void Modular_Reducer::reduce(BigInt& t1, const BigInt& x, secure_vector<word>& w
    // Per HAC this step requires at most 2 subtractions
    t1.ct_reduce_below(m_modulus, ws, 2);
 
-   cnd_rev_sub(t1.is_nonzero() && x.is_negative(), t1, m_modulus._data(), m_modulus.size(), ws);
+   // We do not guarantee constant-time behavior in this case
+   // TODO(Botan4) can be removed entirely once x being non-negative is enforced
+   if(x.is_negative()) {
+      if(t1.is_nonzero()) {
+         t1.rev_sub(m_modulus._data(), m_mod_words, ws);
+      }
+   }
 }
 
 }  // namespace Botan
