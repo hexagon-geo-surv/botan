@@ -60,8 +60,8 @@ BigInt Modular_Reducer::reduce(const BigInt& x) const {
 
 BigInt Modular_Reducer::multiply(const BigInt& x, const BigInt& y) const {
 
-   // TODO(Botan4) remove this block; we'll require x < m && y < m
-   if(x > m_modulus || y > m_modulus) {
+   // TODO(Botan4) remove this block; we'll require 0 <= x < m && 0 <= y < m
+   if(x > m_modulus || y > m_modulus || x.is_negative() || y.is_negative()) {
       return reduce(x * y);
    }
 
@@ -146,18 +146,23 @@ void cnd_rev_sub(bool cnd, BigInt& x, const word y[], size_t y_sw, secure_vector
 }  // namespace
 
 void Modular_Reducer::reduce(BigInt& t1, const BigInt& x, secure_vector<word>& ws) const {
-   if(&t1 == &x) {
-      throw Invalid_State("Modular_Reducer arguments cannot alias");
-   }
+   // TODO(Botan4) this can be removed once the default constructor is gone
    if(m_mod_words == 0) {
       throw Invalid_State("Modular_Reducer: Never initalized");
    }
+
+   if(x.is_negative()) {
+      printf("neg x\n");
+   }
+
+   BOTAN_ARG_CHECK(&t1 != &x, "Arguments cannot alias");
 
    const size_t x_sw = x.sig_words();
 
    if(x_sw > 2 * m_mod_words) {
       // too big, fall back to slow boat division
       t1 = ct_modulo(x, m_modulus);
+      printf("chonky\n");
       return;
    }
 

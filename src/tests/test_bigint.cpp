@@ -757,7 +757,7 @@ BOTAN_REGISTER_TEST("math", "bn_rand", BigInt_Rand_Test);
 class Lucas_Primality_Test final : public Test {
    public:
       std::vector<Test::Result> run() override {
-         const uint32_t lucas_max = (Test::run_long_tests() ? 100000 : 6000);
+         const uint32_t lucas_max = (Test::run_long_tests() ? 100000 : 10000) + 1;
 
          // OEIS A217120
          std::set<uint32_t> lucas_pp{

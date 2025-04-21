@@ -17,6 +17,8 @@
 namespace Botan {
 
 bool is_lucas_probable_prime(const BigInt& C, const Modular_Reducer& mod_C) {
+   BOTAN_ARG_CHECK(C.is_positive(), "Argument should be a positive integer");
+
    if(C == 2 || C == 3 || C == 5 || C == 7 || C == 11 || C == 13) {
       return true;
    }
@@ -49,6 +51,10 @@ bool is_lucas_probable_prime(const BigInt& C, const Modular_Reducer& mod_C) {
       if(D == 17 && is_perfect_square(C).is_nonzero()) {
          return false;
       }
+   }
+
+   if(D.is_negative()) {
+      D += C;
    }
 
    const BigInt K = C + 1;
