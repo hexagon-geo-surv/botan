@@ -29,7 +29,7 @@ class BOTAN_PUBLIC_API(2, 0) Modular_Reducer final {
       * @param y the second operand
       * @return (x * y) % p
       */
-      BigInt multiply(const BigInt& x, const BigInt& y) const { return reduce(x * y); }
+      BigInt multiply(const BigInt& x, const BigInt& y) const;
 
       /**
       * Multiply mod p
@@ -62,6 +62,9 @@ class BOTAN_PUBLIC_API(2, 0) Modular_Reducer final {
       */
       void reduce(BigInt& out, const BigInt& x, secure_vector<word>& ws) const;
 
+      /*
+      * TODO(Botan4) remove this
+      */
       bool initialized() const { return (m_mod_words != 0); }
 
       BOTAN_DEPRECATED("Use for_public_modulus or for_secret_modulus") Modular_Reducer() { m_mod_words = 0; }

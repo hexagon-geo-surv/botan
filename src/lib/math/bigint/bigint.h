@@ -19,6 +19,8 @@ namespace Botan {
 
 class RandomNumberGenerator;
 
+BOTAN_UNSTABLE_API void set_print_sig_words(bool b);
+
 /**
  * Arbitrary precision integer
  */
@@ -945,6 +947,18 @@ class BOTAN_PUBLIC_API(2, 0) BigInt final {
        * @param bytes the span of bytes to load
        */
       void _assign_from_bytes(std::span<const uint8_t> bytes) { assign_from_bytes(bytes); }
+
+      /**
+       * Create a BigInt from a word vector
+       *
+       * @warning this is an implementation detail which is not for
+       * public use and not covered by SemVer.
+       */
+      static BigInt _from_words(secure_vector<word>&& words) {
+         BigInt bn;
+         bn.m_data.swap(words);
+         return bn;
+      }
 
       /**
        * Mark this BigInt as holding secret data

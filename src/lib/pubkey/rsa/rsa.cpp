@@ -29,6 +29,8 @@
    #include <botan/internal/thread_pool.h>
 #endif
 
+#include <iostream>
+
 namespace Botan {
 
 class RSA_Public_Data final {
@@ -539,6 +541,9 @@ class RSA_Private_Operation {
          */
 
          const auto j2_p = Montgomery_Int::from_wide_int(m_private->monty_p(), j2);
+
+         //std::cout << "j1 = " << std::hex << j1.value() << "\n";
+         //std::cout << "j2 = " << std::hex << j2_p.value() << "\n";
 
          /**
          * This doesn't quite match up with the "Smooth-CRT" proposal; there we

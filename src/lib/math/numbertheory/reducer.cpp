@@ -58,10 +58,63 @@ BigInt Modular_Reducer::reduce(const BigInt& x) const {
    return r;
 }
 
+BigInt Modular_Reducer::multiply(const BigInt& x, const BigInt& y) const {
+   BOTAN_ASSERT_NOMSG(x < m_modulus);  // TODO DEBUG_ASSERT
+   BOTAN_ASSERT_NOMSG(y < m_modulus); // TODO DEBUG_ASSERT
+
+   secure_vector<word> ws(2 * m_mod_words);
+
+   // First compute x*y
+
+   BOTAN_ASSERT_NOMSG(x.sig_words() <= m_mod_words);
+   BOTAN_ASSERT_NOMSG(y.sig_words() <= m_mod_words);
+
+   BigInt xy = [&]() {
+      secure_vector<word> z(2 * m_mod_words);
+
+      bigint_mul(z.data(),
+                 z.size(),
+                 x._data(),
+                 x.size(),
+                 std::min(x.size(), m_mod_words),
+                 y._data(),
+                 y.size(),
+                 std::min(y.size(), m_mod_words),
+                 ws.data(), ws.size());
+
+      return BigInt::_from_words(std::move(z));
+   }();
+
+   xy.cond_flip_sign(xy.is_nonzero() && x.sign() != y.sign());
+
+   BOTAN_ASSERT_NOMSG(xy == (x * y));
+
+   BigInt r;
+   reduce(r, xy, ws);
+   return r;
+}
+
 BigInt Modular_Reducer::square(const BigInt& x) const {
-   secure_vector<word> ws;
-   BigInt x2 = x;
-   x2.square(ws);
+   BOTAN_ASSERT_NOMSG(x < m_modulus); // TODO DEBUG_ASSERT
+
+   secure_vector<word> ws(2 * m_mod_words);
+
+   // First compute x^2
+   BigInt x2 = [&]() {
+      secure_vector<word> z(2 * m_mod_words);
+
+      bigint_sqr(z.data(),
+                 z.size(),
+                 x._data(),
+                 x.size(),
+                 std::min(x.size(), m_mod_words),
+                 ws.data(), ws.size());
+
+      return BigInt::_from_words(std::move(z));
+   }();
+
+   BOTAN_ASSERT_NOMSG(x2 == (x * x));
+
    BigInt r;
    reduce(r, x2, ws);
    return r;
