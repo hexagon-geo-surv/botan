@@ -58,10 +58,17 @@ secure_vector<word> barrett_init_shift(size_t mod_words, std::span<const word> x
 
 BigInt barrett_reduce(
    size_t mod_words, const BigInt& modulus, const BigInt& mu, std::span<const word> x_words, secure_vector<word>& ws) {
+
+   if(ws.size() < 2 * mod_words || ws.size() < mod_words + 2) {
+      ws.resize(std::max(2 * mod_words, mod_words + 2));
+   }
+
    // Divide x by 2^(W*(mw - 1)) which is equivalent to ignoring the low words
    BigInt r = BigInt::_from_words(barrett_init_shift(mod_words, x_words));
 
    // Now multiply by mu and divide again
+
+   
    r.mul(mu, ws);
    r >>= (WordInfo<word>::bits * (mod_words + 1));
 
@@ -77,12 +84,8 @@ BigInt barrett_reduce(
    * to either b^(k+1) or else 0.
    */
    const word r_neg = r.is_negative();
-
-   if(ws.size() < mod_words + 2) {
-      ws.resize(mod_words + 2);
-   }
    clear_mem(ws.data(), ws.size());
-   ws[mod_words + 1] = r_neg;
+   ws.at(mod_words + 1) = r_neg;
 
    r.add(ws.data(), mod_words + 2, BigInt::Positive);
 
