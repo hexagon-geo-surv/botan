@@ -299,7 +299,7 @@ BigInt power_mod(const BigInt& base, const BigInt& exp, const BigInt& mod) {
 
    if(mod.is_odd()) {
       auto monty_params = std::make_shared<Montgomery_Params>(mod, reduce_mod);
-      return monty_exp(monty_params, reduce_mod.reduce(base), exp, exp_bits).value();
+      return monty_exp(monty_params, ct_modulo(base, mod), exp, exp_bits).value();
    }
 
    /*
@@ -307,7 +307,7 @@ BigInt power_mod(const BigInt& base, const BigInt& exp, const BigInt& mod) {
    cryptographically important, so this implementation is slow ...
    */
    BigInt accum = BigInt::one();
-   BigInt g = reduce_mod.reduce(base);
+   BigInt g = ct_modulo(base, mod);
    BigInt t;
 
    for(size_t i = 0; i != exp_bits; ++i) {

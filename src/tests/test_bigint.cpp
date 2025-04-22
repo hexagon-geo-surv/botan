@@ -455,11 +455,13 @@ class BigInt_Mod_Test final : public Text_Based_Test {
          e %= b;
          result.test_eq("a %= b", e, expected);
 
-         auto mod_b_pub = Botan::Barrett_Reduction::for_public_modulus(b);
-         result.test_eq("Barrett public", mod_b_pub.reduce(a), expected);
+         if(a.is_positive()) {
+            auto mod_b_pub = Botan::Barrett_Reduction::for_public_modulus(b);
+            result.test_eq("Barrett public", mod_b_pub.reduce(a), expected);
 
-         auto mod_b_sec = Botan::Barrett_Reduction::for_secret_modulus(b);
-         result.test_eq("Barrett secret", mod_b_sec.reduce(a), expected);
+            auto mod_b_sec = Botan::Barrett_Reduction::for_secret_modulus(b);
+            result.test_eq("Barrett secret", mod_b_sec.reduce(a), expected);
+         }
 
          // if b fits into a Botan::word test %= operator for words
          if(b.sig_words() == 1) {

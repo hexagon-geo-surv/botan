@@ -171,17 +171,19 @@ BigInt Barrett_Reduction::square(const BigInt& x) const {
 void Barrett_Reduction::reduce(BigInt& t1, const BigInt& x, secure_vector<word>& ws) const {
    BOTAN_ARG_CHECK(&t1 != &x, "Arguments cannot alias");
 
-   // TODO(Botan4) add this requirement for callers
-   // BOTAN_ARG_CHECK(x.is_positive(), "Argument must be positive");
+   BOTAN_ARG_CHECK(x.is_positive(), "Argument must be positive");
 
    const size_t x_sw = x.sig_words();
 
    // TODO(Botan4) can be removed entirely once the restriction is enforced
    if(x_sw > 2 * m_mod_words) {
       // too big, fall back to slow boat division
+      printf("chonky!\n");
       t1 = ct_modulo(x, m_modulus);
       return;
    }
+
+   BOTAN_ARG_CHECK(x_sw <= 2 * m_mod_words, "Barrett reduction input too large to handle");
 
    t1 = barrett_reduce(m_mod_words, m_modulus, m_mu, x._as_span(), ws);
 
