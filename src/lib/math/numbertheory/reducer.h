@@ -10,12 +10,18 @@
 
 #include <botan/bigint.h>
 
-BOTAN_FUTURE_INTERNAL_HEADER(reducer.h)
+BOTAN_DEPRECATED_HEADER("reducer.h")
 
 namespace Botan {
 
 /**
-* Modular Reduction (using Barrett's technique)
+* Modular Reduction
+*
+* This interface is no longer used within the library and is not considered
+* in-scope for what the public API should support. It is expected this class
+* and this entire header will be removed in Botan4.
+*
+* TODO(Botan4) delete this file
 */
 class BOTAN_PUBLIC_API(2, 0) Modular_Reducer final {
    public:
@@ -38,7 +44,7 @@ class BOTAN_PUBLIC_API(2, 0) Modular_Reducer final {
       * the algorithm attempts to avoid side channels. Side channel security is not
       * guaranteed for inputs that are either negative or larger than the modulus.
       */
-      BigInt multiply(const BigInt& x, const BigInt& y) const;
+      BigInt multiply(const BigInt& x, const BigInt& y) const { return reduce(x * y); }
 
       /**
       * Multiply mod p
@@ -57,7 +63,7 @@ class BOTAN_PUBLIC_API(2, 0) Modular_Reducer final {
       * attempts to avoid side channels. Side channel security is not guaranteed
       * for inputs that are either negative or larger than the modulus.
       */
-      BigInt square(const BigInt& x) const;
+      BigInt square(const BigInt& x) const { return reduce(x * x); }
 
       /**
       * Cube mod p
@@ -68,34 +74,15 @@ class BOTAN_PUBLIC_API(2, 0) Modular_Reducer final {
       */
       BigInt cube(const BigInt& x) const { return multiply(x, this->square(x)); }
 
-      /**
-      * Low level reduction function. Mostly for internal use.
-      * Sometimes useful for performance by reducing temporaries
-      * Reduce x mod p and place the output in out.
-      *
-      * @warning X and out must not reference each other
-      *
-      * ws is a temporary workspace.
-      *
-      * TODO(Botan4) make this function private
-      */
-      void reduce(BigInt& out, const BigInt& x, secure_vector<word>& ws) const;
+      bool initialized() const { return m_modulus.is_nonzero(); }
 
-      /*
-      * TODO(Botan4) remove this
-      */
-      bool initialized() const { return (m_mod_words != 0); }
-
-      BOTAN_DEPRECATED("Use for_public_modulus or for_secret_modulus") Modular_Reducer() { m_mod_words = 0; }
+      Modular_Reducer() = default;
 
       /**
-      * Accepts m == 0 and leaves the Modular_Reducer in an uninitialized state
+      * Accepts m == 0 which leaves the Modular_Reducer in an uninitialized state
       */
-      BOTAN_DEPRECATED("Use for_public_modulus or for_secret_modulus") explicit Modular_Reducer(const BigInt& mod);
+      explicit Modular_Reducer(const BigInt& mod);
 
-      /**
-      * TODO(Botan4) remove this
-      */
       const BigInt& get_modulus() const { return m_modulus; }
 
       /**
@@ -103,7 +90,7 @@ class BOTAN_PUBLIC_API(2, 0) Modular_Reducer final {
       *
       * Requires that m > 0
       */
-      static Modular_Reducer for_public_modulus(const BigInt& m);
+      static Modular_Reducer for_public_modulus(const BigInt& m) { return Modular_Reducer(m); }
 
       /**
       * Setup for reduction where the modulus itself is secret.
@@ -113,13 +100,17 @@ class BOTAN_PUBLIC_API(2, 0) Modular_Reducer final {
       *
       * Requires that m > 0
       */
-      static Modular_Reducer for_secret_modulus(const BigInt& m);
+      static Modular_Reducer for_secret_modulus(const BigInt& m) { return Modular_Reducer(m); }
+
+      /**
+      * Old reduction function. No advantage vs using plain reduce
+      */
+      void reduce(BigInt& out, const BigInt& x, secure_vector<word>& /*ws*/) const {
+         out = reduce(x);
+      }
 
    private:
-      Modular_Reducer(const BigInt& m, BigInt mu, size_t mw) : m_modulus(m), m_mu(std::move(mu)), m_mod_words(mw) {}
-
-      BigInt m_modulus, m_mu;
-      size_t m_mod_words;
+      BigInt m_modulus;
 };
 
 }  // namespace Botan

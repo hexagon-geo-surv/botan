@@ -117,15 +117,9 @@ BigInt barrett_reduce(
 }  // namespace
 
 BigInt Barrett_Reduction::multiply(const BigInt& x, const BigInt& y) const {
-   // TODO(Botan4) remove this block; we'll require 0 <= x < m && 0 <= y < m
-   if(x > m_modulus || y > m_modulus || x.is_negative() || y.is_negative()) {
-      return ct_modulo(x * y, m_modulus);
-   }
-
-   BOTAN_DEBUG_ASSERT(x.is_positive());
-   BOTAN_DEBUG_ASSERT(x < m_modulus);
-   BOTAN_DEBUG_ASSERT(y.is_positive());
-   BOTAN_DEBUG_ASSERT(y < m_modulus);
+   // XXX comparison might be expensive here
+   BOTAN_ARG_CHECK(x.is_positive() && x < m_modulus, "Invalid x param for Barrett multiply");
+   BOTAN_ARG_CHECK(y.is_positive() && y < m_modulus, "Invalid y param for Barrett multiply");
 
    secure_vector<word> ws(2 * m_mod_words);
 
@@ -155,13 +149,8 @@ BigInt Barrett_Reduction::multiply(const BigInt& x, const BigInt& y) const {
 }
 
 BigInt Barrett_Reduction::square(const BigInt& x) const {
-   // TODO(Botan4) remove this block; we'll require 0 <= x < m
-   if(x.is_negative() || x >= m_modulus) {
-      return ct_modulo(x * x, m_modulus);
-   }
-
-   BOTAN_DEBUG_ASSERT(x.is_positive());
-   BOTAN_DEBUG_ASSERT(x < m_modulus);
+   // XXX comparison might be expensive here
+   BOTAN_ARG_CHECK(x.is_positive() && x < m_modulus, "Invalid x param for Barrett square");
 
    secure_vector<word> ws(2 * m_mod_words);
 

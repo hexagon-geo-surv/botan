@@ -14,7 +14,7 @@ namespace Botan {
 /**
 * Barrett Reduction
 */
-class BOTAN_PUBLIC_API(2, 0) Barrett_Reduction final {
+class BOTAN_TEST_API Barrett_Reduction final {
    public:
       /**
       * Setup for reduction where the modulus itself is public
