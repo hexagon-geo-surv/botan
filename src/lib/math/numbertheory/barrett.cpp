@@ -143,7 +143,7 @@ BigInt Barrett_Reduction::multiply(const BigInt& x, const BigInt& y) const {
                  ws.data(),
                  ws.size());
 
-      return barrett_reduce(m_mod_words, m_modulus, m_mu, x._as_span(), ws);
+      return BigInt::_from_words(std::move(z));
    }();
 
    // TODO(Botan4) remove this; instead require x and y be positive
