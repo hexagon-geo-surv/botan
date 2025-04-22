@@ -74,8 +74,6 @@ class BOTAN_TEST_API Barrett_Reduction final {
       Barrett_Reduction(const BigInt& m, BigInt mu, size_t mw) :
             m_modulus(m), m_mu(std::move(mu)), m_mod_words(mw), m_modulus_bits(m.bits()) {}
 
-      void reduce(BigInt& t1, const BigInt& x, secure_vector<word>& ws) const;
-
       BigInt m_modulus;
       BigInt m_mu;
       size_t m_mod_words;

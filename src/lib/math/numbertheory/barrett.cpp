@@ -34,13 +34,6 @@ Barrett_Reduction Barrett_Reduction::for_public_modulus(const BigInt& mod) {
    return Barrett_Reduction(mod, BigInt::power_of_2(mu_bits) / mod, mod_words);
 }
 
-BigInt Barrett_Reduction::reduce(const BigInt& x) const {
-   BigInt r;
-   secure_vector<word> ws;
-   reduce(r, x, ws);
-   return r;
-}
-
 namespace {
 
 /*
@@ -66,12 +59,7 @@ secure_vector<word> barrett_init_shift(size_t mod_words, std::span<const word> x
 BigInt barrett_reduce(
    size_t mod_words, const BigInt& modulus, const BigInt& mu, std::span<const word> x_words, secure_vector<word>& ws) {
    // Divide x by 2^(W*(mw - 1)) which is equivalent to ignoring the low words
-#if 0
-   BigInt r = BigInt::_from_words(x_words.subspan(mod_words - 1));
-   r >>= (WordInfo<word>::bits * (mod_words - 1));
-#else
    BigInt r = BigInt::_from_words(barrett_init_shift(mod_words, x_words));
-#endif
 
    // Now multiply by mu and divide again
    r.mul(mu, ws);
@@ -122,30 +110,20 @@ BigInt Barrett_Reduction::multiply(const BigInt& x, const BigInt& y) const {
    BOTAN_ARG_CHECK(y.is_positive() && y < m_modulus, "Invalid y param for Barrett multiply");
 
    secure_vector<word> ws(2 * m_mod_words);
+   secure_vector<word> xy(2 * m_mod_words);
 
-   BigInt xy = [&]() {
-      secure_vector<word> z(2 * m_mod_words);
+   bigint_mul(xy.data(),
+              xy.size(),
+              x._data(),
+              x.size(),
+              std::min(x.size(), m_mod_words),
+              y._data(),
+              y.size(),
+              std::min(y.size(), m_mod_words),
+              ws.data(),
+              ws.size());
 
-      bigint_mul(z.data(),
-                 z.size(),
-                 x._data(),
-                 x.size(),
-                 std::min(x.size(), m_mod_words),
-                 y._data(),
-                 y.size(),
-                 std::min(y.size(), m_mod_words),
-                 ws.data(),
-                 ws.size());
-
-      return BigInt::_from_words(std::move(z));
-   }();
-
-   // TODO(Botan4) remove this; instead require x and y be positive
-   xy.cond_flip_sign(xy.is_nonzero() && x.sign() != y.sign());
-
-   BigInt r;
-   reduce(r, xy, ws);
-   return r;
+   return barrett_reduce(m_mod_words, m_modulus, m_mu, xy, ws);
 }
 
 BigInt Barrett_Reduction::square(const BigInt& x) const {
@@ -153,24 +131,14 @@ BigInt Barrett_Reduction::square(const BigInt& x) const {
    BOTAN_ARG_CHECK(x.is_positive() && x < m_modulus, "Invalid x param for Barrett square");
 
    secure_vector<word> ws(2 * m_mod_words);
+   secure_vector<word> x2(2 * m_mod_words);
 
-   // First compute x^2
-   BigInt x2 = [&]() {
-      secure_vector<word> z(2 * m_mod_words);
+   bigint_sqr(x2.data(), x2.size(), x._data(), x.size(), std::min(x.size(), m_mod_words), ws.data(), ws.size());
 
-      bigint_sqr(z.data(), z.size(), x._data(), x.size(), std::min(x.size(), m_mod_words), ws.data(), ws.size());
-
-      return BigInt::_from_words(std::move(z));
-   }();
-
-   BigInt r;
-   reduce(r, x2, ws);
-   return r;
+   return barrett_reduce(m_mod_words, m_modulus, m_mu, x2, ws);
 }
 
-void Barrett_Reduction::reduce(BigInt& t1, const BigInt& x, secure_vector<word>& ws) const {
-   BOTAN_ARG_CHECK(&t1 != &x, "Arguments cannot alias");
-
+BigInt Barrett_Reduction::reduce(const BigInt& x) const {
    BOTAN_ARG_CHECK(x.is_positive(), "Argument must be positive");
 
    const size_t x_sw = x.sig_words();
@@ -179,21 +147,13 @@ void Barrett_Reduction::reduce(BigInt& t1, const BigInt& x, secure_vector<word>&
    if(x_sw > 2 * m_mod_words) {
       // too big, fall back to slow boat division
       printf("chonky!\n");
-      t1 = ct_modulo(x, m_modulus);
-      return;
+      return ct_modulo(x, m_modulus);
    }
 
    BOTAN_ARG_CHECK(x_sw <= 2 * m_mod_words, "Barrett reduction input too large to handle");
 
-   t1 = barrett_reduce(m_mod_words, m_modulus, m_mu, x._as_span(), ws);
-
-   // We do not guarantee constant-time behavior in this case
-   // TODO(Botan4) can be removed entirely once x being non-negative is enforced
-   if(x.is_negative()) {
-      if(t1.is_nonzero()) {
-         t1.rev_sub(m_modulus._data(), m_mod_words, ws);
-      }
-   }
+   secure_vector<word> ws;
+   return barrett_reduce(m_mod_words, m_modulus, m_mu, x._as_span(), ws);
 }
 
 }  // namespace Botan
