@@ -295,12 +295,13 @@ DL_Group::DL_Group(RandomNumberGenerator& rng, PrimeType type, size_t pbits, siz
       }
 
       const BigInt q = random_prime(rng, qbits);
-      auto mod_2q = Barrett_Reduction::for_public_modulus(2 * q);
+      const BigInt q2 = q * 2;
       BigInt X;
       BigInt p;
       while(p.bits() != pbits || !is_prime(p, rng, 128, true)) {
          X.randomize(rng, pbits);
-         p = X - mod_2q.reduce(X) + 1;
+         // Variable time division is OK here since DH groups are public anyway
+         p = X - (X % q2) + 1;
       }
 
       const BigInt g = make_dsa_generator(p, q);

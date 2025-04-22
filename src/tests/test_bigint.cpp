@@ -455,7 +455,7 @@ class BigInt_Mod_Test final : public Text_Based_Test {
          e %= b;
          result.test_eq("a %= b", e, expected);
 
-         if(a.is_positive()) {
+         if(a.is_positive() && a < (b * b)) {
             auto mod_b_pub = Botan::Barrett_Reduction::for_public_modulus(b);
             result.test_eq("Barrett public", mod_b_pub.reduce(a), expected);
 

@@ -87,13 +87,13 @@ BigInt barrett_reduce(
    r.add(ws.data(), mod_words + 2, BigInt::Positive);
 
    BOTAN_DEBUG_ASSERT(r.is_positive());
-   BOTAN_DEBUG_ASSERT(r.size() >= mod_words + 1);
 
    clear_mem(ws.data(), ws.size());
 
    // Per HAC this step requires at most 2 subtractions
    const size_t bound = 2;
 
+   BOTAN_ASSERT_NOMSG(r.size() >= mod_words + 1);
    for(size_t i = 0; i != bound; ++i) {
       word borrow = bigint_sub3(ws.data(), r._data(), mod_words + 1, modulus._data(), mod_words);
       CT::Mask<word>::is_zero(borrow).select_n(r.mutable_data(), ws.data(), r._data(), mod_words + 1);
@@ -142,15 +142,7 @@ BigInt Barrett_Reduction::reduce(const BigInt& x) const {
    BOTAN_ARG_CHECK(x.is_positive(), "Argument must be positive");
 
    const size_t x_sw = x.sig_words();
-
-   // TODO(Botan4) can be removed entirely once the restriction is enforced
-   if(x_sw > 2 * m_mod_words) {
-      // too big, fall back to slow boat division
-      printf("chonky!\n");
-      return ct_modulo(x, m_modulus);
-   }
-
-   BOTAN_ARG_CHECK(x_sw <= 2 * m_mod_words, "Barrett reduction input too large to handle");
+   BOTAN_ARG_CHECK(x_sw <= 2 * m_mod_words, "Argument is too large for Barrett reduction");
 
    secure_vector<word> ws;
    return barrett_reduce(m_mod_words, m_modulus, m_mu, x._as_span(), ws);
