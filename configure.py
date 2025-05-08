@@ -15,8 +15,10 @@ Botan is released under the Simplified BSD License (see license.txt)
 
 import collections
 import copy
+import errno
 import json
-import sys
+import logging
+import optparse # pylint: disable=deprecated-module
 import os
 import os.path
 import platform
@@ -24,11 +26,10 @@ import re
 import shlex
 import shutil
 import subprocess
-import traceback
-import logging
+import sys
 import time
-import errno
-import optparse # pylint: disable=deprecated-module
+import traceback
+import typing
 
 # An error caused by and to be fixed by the user, e.g. invalid command line argument
 class UserError(Exception):
@@ -40,17 +41,19 @@ class UserError(Exception):
 class InternalError(Exception):
     pass
 
+# NewType for the options struct
+OptionsDict = typing.NewType('OptionsDict', object)
 
-def flatten(l):
-    return sum(l, [])
+def flatten(lst: typing.Iterable[list[str]]) -> list[str]:
+    return sum(lst, [])
 
-def normalize_source_path(source):
+def normalize_source_path(source: str) -> str:
     """
     cmake and some versions of make need this, and nothing else minds
     """
     return os.path.normpath(source).replace('\\', '/')
 
-def normalize_source_paths(sources):
+def normalize_source_paths(sources: list[str]) -> list[str]:
     return [normalize_source_path(p) for p in sources]
 
 def parse_version_file(version_path):
@@ -80,7 +83,7 @@ class Version:
     """
     Version information are all static members
     """
-    data = {}
+    data : dict[str, str | int | None] = {}
 
     @staticmethod
     def get_data():
@@ -208,7 +211,7 @@ class SourcePaths:
     All paths are relative to the base_dir, which may be relative as well (e.g. ".")
     """
 
-    def __init__(self, base_dir):
+    def __init__(self, base_dir: str):
         self.base_dir = base_dir
         self.doc_dir = os.path.join(self.base_dir, 'doc')
         self.src_dir = os.path.join(self.base_dir, 'src')
@@ -226,10 +229,19 @@ class SourcePaths:
 
 
 class BuildPaths:
+
+    example_sources: list[str] | None
+    example_output_dir: str | None
+    example_obj_dir: str | None
+
+    fuzzer_sources: list[str] | None
+    fuzzer_output_dir: str | None
+    fuzzobj_dir: str | None
+
     """
     Constructor
     """
-    def __init__(self, source_paths, options, modules):
+    def __init__(self, source_paths: SourcePaths, options, modules):
         self.build_dir = os.path.join(options.with_build_dir, 'build')
 
         self.libobj_dir = os.path.join(self.build_dir, 'obj', 'lib')
@@ -344,7 +356,7 @@ class BuildPaths:
 
 ACCEPTABLE_BUILD_TARGETS = ["static", "shared", "cli", "tests", "bogo_shim", "examples", "ct_selftest"]
 
-def process_command_line(args):
+def process_command_line(args: list[str]) -> typing.Any:
     """
     Handle command line options
     Do not use logging in this method as command line options need to be
@@ -738,7 +750,7 @@ class LexResult:
 
 
 class LexerError(InternalError):
-    def __init__(self, msg, lexfile, line):
+    def __init__(self, msg: str, lexfile: str, line: int):
         super().__init__(msg)
         self.msg = msg
         self.lexfile = lexfile
@@ -747,7 +759,7 @@ class LexerError(InternalError):
     def __str__(self):
         return '%s at %s:%d' % (self.msg, self.lexfile, self.line)
 
-def parse_lex_dict(as_list, map_name, infofile):
+def parse_lex_dict(as_list: list[str], map_name: str, infofile: str) -> dict[str, str]:
     if len(as_list) % 3 != 0:
         raise InternalError("Lex dictionary has invalid format (input not divisible by 3): %s" % as_list)
 
@@ -760,7 +772,7 @@ def parse_lex_dict(as_list, map_name, infofile):
         result[key] = value
     return result
 
-def lex_me_harder(infofile, allowed_groups, allowed_maps, name_val_pairs):
+def lex_me_harder(infofile: str, allowed_groups: list[str], allowed_maps: list[str], name_val_pairs: dict[str, str | None]) -> typing.Any:
     """
     Generic lexer function for info.txt and src/build-data files
     """
@@ -823,7 +835,7 @@ def lex_me_harder(infofile, allowed_groups, allowed_maps, name_val_pairs):
     return out
 
 class InfoObject:
-    def __init__(self, infofile):
+    def __init__(self, infofile: str):
         """
         Constructor sets members `infofile`, `lives_in`, `parent_module` and `basename`
         """
@@ -853,7 +865,7 @@ class ModuleInfo(InfoObject):
     Represents the information about a particular module
     """
 
-    def __init__(self, infofile):
+    def __init__(self, infofile: str):
         super().__init__(infofile)
         lex = lex_me_harder(
             infofile,
@@ -974,7 +986,7 @@ class ModuleInfo(InfoObject):
             if year < 2013 or month == 0 or month > 12 or day == 0 or day > 31:
                 raise InternalError('Module defines value has invalid format: "%s" (should be YYYYMMDD)' % value)
 
-    def cross_check(self, arch_info, cc_info, all_os_features, all_isa_extn):
+    def cross_check(self, arch_info: list['ArchInfo'], cc_info: list['CompilerInfo'], all_os_features: list[str], all_isa_extn: list[str]):
 
         for feat in set(flatten([o.split(',') for o in self.os_features])):
             if feat not in all_os_features:
@@ -1183,7 +1195,7 @@ class ModuleInfo(InfoObject):
         return self.lifecycle == "Deprecated"
 
 class ModulePolicyInfo(InfoObject):
-    def __init__(self, infofile):
+    def __init__(self, infofile: str):
         super().__init__(infofile)
         lex = lex_me_harder(
             infofile,
@@ -1212,7 +1224,7 @@ class ModulePolicyInfo(InfoObject):
 
 
 class ArchInfo(InfoObject):
-    def __init__(self, infofile):
+    def __init__(self, infofile: str):
         super().__init__(infofile)
         lex = lex_me_harder(
             infofile,
@@ -1231,7 +1243,7 @@ class ArchInfo(InfoObject):
             if alphanumeric.match(isa) is None:
                 logging.error('Invalid name for ISA extension "%s"', isa)
 
-    def supported_isa_extensions(self, cc, options):
+    def supported_isa_extensions(self, cc: 'CompilerInfo', options):
         isas = []
 
         for isa in self.isa_extensions:
@@ -1243,7 +1255,7 @@ class ArchInfo(InfoObject):
 
 
 class CompilerInfo(InfoObject):
-    def __init__(self, infofile):
+    def __init__(self, infofile: str):
         super().__init__(infofile)
         lex = lex_me_harder(
             infofile,
@@ -1319,7 +1331,7 @@ class CompilerInfo(InfoObject):
         self.output_to_object = lex.output_to_object
         self.preproc_flags = lex.preproc_flags
         self.sanitizers = lex.sanitizers
-        self.sanitizer_types = []
+        self.sanitizer_types : list[str] = []
         self.sanitizer_optimization_flags = lex.sanitizer_optimization_flags
         self.shared_flags = lex.shared_flags
         self.size_optimization_flags = lex.size_optimization_flags
@@ -3035,8 +3047,9 @@ def load_info_files(search_dir, descr, filename_matcher, class_t):
 
     return info
 
+T = typing.TypeVar('T')
 
-def load_build_data_info_files(source_paths, descr, subdir, class_t):
+def load_build_data_info_files(source_paths: SourcePaths, descr: str, subdir: str, class_t: typing.Type[T]) -> list[T]:
     matcher = re.compile(r'[_a-z0-9]+\.txt$')
     return load_info_files(os.path.join(source_paths.build_data_dir, subdir), descr, matcher, class_t)
 
