@@ -31,6 +31,8 @@ class SIMD_4x64 final {
       // zero initialized
       BOTAN_FN_ISA_SIMD_4X64 SIMD_4x64() { m_simd = _mm256_setzero_si256(); }
 
+      static BOTAN_FN_ISA_SIMD_4X64 SIMD_4x64 splat(uint64_t v) { return SIMD_4x64(_mm256_set1_epi64x(v)); }
+
       // Load two halves at different addresses
       static BOTAN_FN_ISA_SIMD_4X64 SIMD_4x64 load_le2(const void* inl, const void* inh) {
          return SIMD_4x64(
@@ -55,6 +57,8 @@ class SIMD_4x64 final {
       }
 
       void store_le(uint64_t out[4]) const { this->store_le(reinterpret_cast<uint8_t*>(out)); }
+
+      void store_be(uint64_t out[4]) const { bswap().store_le(reinterpret_cast<uint8_t*>(out)); }
 
       BOTAN_FN_ISA_SIMD_4X64 void store_le(uint8_t out[]) const {
          _mm256_storeu_si256(reinterpret_cast<__m256i*>(out), m_simd);
@@ -157,9 +161,50 @@ class SIMD_4x64 final {
          D = SIMD_4x64::permute_4x64<0b00'11'10'01>(D);
       }
 
+      static inline void transpose(SIMD_4x64& B0, SIMD_4x64& B1, SIMD_4x64& B2, SIMD_4x64& B3) noexcept {
+         auto T0 = SIMD_4x64(_mm256_unpacklo_epi64(B0.raw(), B1.raw()));
+         auto T1 = SIMD_4x64(_mm256_unpacklo_epi64(B2.raw(), B3.raw()));
+         auto T2 = SIMD_4x64(_mm256_unpackhi_epi64(B0.raw(), B1.raw()));
+         auto T3 = SIMD_4x64(_mm256_unpackhi_epi64(B2.raw(), B3.raw()));
+
+         swap_tops(T0, T1);
+         swap_tops(T2, T3);
+
+         B0 = T0;
+         B1 = T2;
+         B2 = T1;
+         B3 = T3;
+      }
+
+      static inline void transpose(SIMD_4x64& B0, SIMD_4x64& B1, SIMD_4x64& B2, SIMD_4x64& B3,
+                                   SIMD_4x64& B4, SIMD_4x64& B5, SIMD_4x64& B6, SIMD_4x64& B7,
+                                   SIMD_4x64& B8, SIMD_4x64& B9, SIMD_4x64& BA, SIMD_4x64& BB,
+                                   SIMD_4x64& BC, SIMD_4x64& BD, SIMD_4x64& BE, SIMD_4x64& BF) {
+         transpose(B0, B4, B8, BC);
+         transpose(B1, B5, B9, BD);
+         transpose(B2, B6, BA, BE);
+         transpose(B3, B7, BB, BF);
+
+         std::swap(B1, B4);
+         std::swap(B2, B8);
+         std::swap(B3, BC);
+         std::swap(B6, B9);
+         std::swap(B7, BD);
+         std::swap(BB, BE);
+      }
+
       explicit BOTAN_FN_ISA_SIMD_4X64 SIMD_4x64(__m256i x) : m_simd(x) {}
 
+      __m256i raw() const { return m_simd; }
+
    private:
+      static inline void swap_tops(SIMD_4x64& A, SIMD_4x64& B) {
+         SIMD_4x64 T0 = SIMD_4x64(_mm256_permute2x128_si256(A.raw(), B.raw(), 0 + (2 << 4)));
+         SIMD_4x64 T1 = SIMD_4x64(_mm256_permute2x128_si256(A.raw(), B.raw(), 1 + (3 << 4)));
+         A = T0;
+         B = T1;
+      }
+
       __m256i m_simd;
 };
 
