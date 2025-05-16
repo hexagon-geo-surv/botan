@@ -49,11 +49,11 @@ void SHACAL2::encrypt_n(const uint8_t in[], uint8_t out[], size_t blocks) const 
 
 #if defined(BOTAN_HAS_SHACAL2_AVX512)
    if(CPUID::has(CPUID::Feature::AVX512)) {
-      while(blocks >= 8) {
-         avx512_encrypt_8(in, out);
-         in += 8 * BLOCK_SIZE;
-         out += 8 * BLOCK_SIZE;
-         blocks -= 8;
+      while(blocks >= 16) {
+         avx512_encrypt_16(in, out);
+         in += 16 * BLOCK_SIZE;
+         out += 16 * BLOCK_SIZE;
+         blocks -= 16;
       }
    }
 #endif
@@ -239,7 +239,7 @@ size_t SHACAL2::parallelism() const {
 
 #if defined(BOTAN_HAS_SHACAL2_AVX512)
    if(CPUID::has(CPUID::Feature::AVX512)) {
-      return 8;
+      return 16;
    }
 #endif
 

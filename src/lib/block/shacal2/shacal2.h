@@ -45,7 +45,7 @@ class SHACAL2 final : public Block_Cipher_Fixed_Params<32, 16, 64, 4> {
 #endif
 
 #if defined(BOTAN_HAS_SHACAL2_AVX512)
-      void avx512_encrypt_8(const uint8_t in[], uint8_t out[]) const;
+      void avx512_encrypt_16(const uint8_t in[], uint8_t out[]) const;
       void avx512_decrypt_8(const uint8_t in[], uint8_t out[]) const;
 #endif
 

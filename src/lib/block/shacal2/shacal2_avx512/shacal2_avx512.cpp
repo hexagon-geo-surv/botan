@@ -7,6 +7,7 @@
 #include <botan/internal/shacal2.h>
 
 #include <botan/internal/simd_avx2.h>
+#include <botan/internal/simd_avx512.h>
 
 namespace Botan {
 
@@ -40,20 +41,47 @@ void BOTAN_FORCE_INLINE BOTAN_FN_ISA_AVX512 SHACAL2_Rev(const SIMD_8x32& A,
    H -= E.sigma1() + SIMD_8x32::choose(E, F, G) + SIMD_8x32::splat(RK);
 }
 
+void BOTAN_FORCE_INLINE BOTAN_FN_ISA_AVX512 SHACAL2_Fwd(const SIMD_16x32& A,
+                                                      const SIMD_16x32& B,
+                                                      const SIMD_16x32& C,
+                                                      SIMD_16x32& D,
+                                                      const SIMD_16x32& E,
+                                                      const SIMD_16x32& F,
+                                                      const SIMD_16x32& G,
+                                                      SIMD_16x32& H,
+                                                      uint32_t RK) {
+   H += E.sigma1() + SIMD_16x32::choose(E, F, G) + SIMD_16x32::splat(RK);
+   D += H;
+   H += A.sigma0() + SIMD_16x32::majority(A, B, C);
+}
+
+void BOTAN_FORCE_INLINE BOTAN_FN_ISA_AVX512 SHACAL2_Rev(const SIMD_16x32& A,
+                                                      const SIMD_16x32& B,
+                                                      const SIMD_16x32& C,
+                                                      SIMD_16x32& D,
+                                                      const SIMD_16x32& E,
+                                                      const SIMD_16x32& F,
+                                                      const SIMD_16x32& G,
+                                                      SIMD_16x32& H,
+                                                      uint32_t RK) {
+   H -= A.sigma0() + SIMD_16x32::majority(A, B, C);
+   D -= H;
+   H -= E.sigma1() + SIMD_16x32::choose(E, F, G) + SIMD_16x32::splat(RK);
+}
+
 }  // namespace
 
-void BOTAN_FN_ISA_AVX512 SHACAL2::avx512_encrypt_8(const uint8_t in[], uint8_t out[]) const {
-   SIMD_8x32 A = SIMD_8x32::load_be(in);
-   SIMD_8x32 B = SIMD_8x32::load_be(in + 32);
-   SIMD_8x32 C = SIMD_8x32::load_be(in + 64);
-   SIMD_8x32 D = SIMD_8x32::load_be(in + 96);
+void BOTAN_FN_ISA_AVX512 SHACAL2::avx512_encrypt_16(const uint8_t in[], uint8_t out[]) const {
+   SIMD_16x32 A = SIMD_16x32::load_be(in);
+   SIMD_16x32 B = SIMD_16x32::load_be(in + 64*1);
+   SIMD_16x32 C = SIMD_16x32::load_be(in + 64*2);
+   SIMD_16x32 D = SIMD_16x32::load_be(in + 64*3);
+   SIMD_16x32 E = SIMD_16x32::load_be(in + 64*4);
+   SIMD_16x32 F = SIMD_16x32::load_be(in + 64*5);
+   SIMD_16x32 G = SIMD_16x32::load_be(in + 64*6);
+   SIMD_16x32 H = SIMD_16x32::load_be(in + 64*7);
 
-   SIMD_8x32 E = SIMD_8x32::load_be(in + 128);
-   SIMD_8x32 F = SIMD_8x32::load_be(in + 160);
-   SIMD_8x32 G = SIMD_8x32::load_be(in + 192);
-   SIMD_8x32 H = SIMD_8x32::load_be(in + 224);
-
-   SIMD_8x32::transpose(A, B, C, D, E, F, G, H);
+   SIMD_16x32::transpose(A, B, C, D, E, F, G, H);
 
    for(size_t r = 0; r != 64; r += 8) {
       SHACAL2_Fwd(A, B, C, D, E, F, G, H, m_RK[r + 0]);
@@ -66,19 +94,17 @@ void BOTAN_FN_ISA_AVX512 SHACAL2::avx512_encrypt_8(const uint8_t in[], uint8_t o
       SHACAL2_Fwd(B, C, D, E, F, G, H, A, m_RK[r + 7]);
    }
 
-   SIMD_8x32::transpose(A, B, C, D, E, F, G, H);
+   SIMD_16x32::transpose(A, B, C, D, E, F, G, H);
 
    A.store_be(out);
-   B.store_be(out + 32);
-   C.store_be(out + 64);
-   D.store_be(out + 96);
+   B.store_be(out + 64*1);
+   C.store_be(out + 64*2);
+   D.store_be(out + 64*3);
 
-   E.store_be(out + 128);
-   F.store_be(out + 160);
-   G.store_be(out + 192);
-   H.store_be(out + 224);
-
-   SIMD_8x32::zero_registers();
+   E.store_be(out + 64*4);
+   F.store_be(out + 64*5);
+   G.store_be(out + 64*6);
+   H.store_be(out + 64*7);
 }
 
 void BOTAN_FN_ISA_AVX512 SHACAL2::avx512_decrypt_8(const uint8_t in[], uint8_t out[]) const {

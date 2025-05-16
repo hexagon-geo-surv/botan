@@ -204,6 +204,43 @@ class SIMD_16x32 final {
                             SIMD_16x32& B4,
                             SIMD_16x32& B5,
                             SIMD_16x32& B6,
+                            SIMD_16x32& B7) {
+         auto t0 = _mm512_unpacklo_epi32(B0.raw(), B1.raw());
+         auto t1 = _mm512_unpackhi_epi32(B0.raw(), B1.raw());
+         auto t2 = _mm512_unpacklo_epi32(B2.raw(), B3.raw());
+         auto t3 = _mm512_unpackhi_epi32(B2.raw(), B3.raw());
+         auto t4 = _mm512_unpacklo_epi32(B4.raw(), B5.raw());
+         auto t5 = _mm512_unpackhi_epi32(B4.raw(), B5.raw());
+         auto t6 = _mm512_unpacklo_epi32(B6.raw(), B7.raw());
+         auto t7 = _mm512_unpackhi_epi32(B6.raw(), B7.raw());
+
+         auto r0 = _mm512_unpacklo_epi64(t0, t2);
+         auto r1 = _mm512_unpackhi_epi64(t0, t2);
+         auto r2 = _mm512_unpacklo_epi64(t1, t3);
+         auto r3 = _mm512_unpackhi_epi64(t1, t3);
+         auto r4 = _mm512_unpacklo_epi64(t4, t6);
+         auto r5 = _mm512_unpackhi_epi64(t4, t6);
+         auto r6 = _mm512_unpacklo_epi64(t5, t7);
+         auto r7 = _mm512_unpackhi_epi64(t5, t7);
+
+         B0.m_avx512 = _mm512_shuffle_i32x4(r0, r4, 0x88);
+         B1.m_avx512 = _mm512_shuffle_i32x4(r1, r5, 0x88);
+         B2.m_avx512 = _mm512_shuffle_i32x4(r2, r6, 0x88);
+         B3.m_avx512 = _mm512_shuffle_i32x4(r3, r7, 0x88);
+         B4.m_avx512 = _mm512_shuffle_i32x4(r0, r4, 0xdd);
+         B5.m_avx512 = _mm512_shuffle_i32x4(r1, r5, 0xdd);
+         B6.m_avx512 = _mm512_shuffle_i32x4(r2, r6, 0xdd);
+         B7.m_avx512 = _mm512_shuffle_i32x4(r3, r7, 0xdd);
+      }
+
+      BOTAN_FN_ISA_AVX512
+      static void transpose(SIMD_16x32& B0,
+                            SIMD_16x32& B1,
+                            SIMD_16x32& B2,
+                            SIMD_16x32& B3,
+                            SIMD_16x32& B4,
+                            SIMD_16x32& B5,
+                            SIMD_16x32& B6,
                             SIMD_16x32& B7,
                             SIMD_16x32& B8,
                             SIMD_16x32& B9,
