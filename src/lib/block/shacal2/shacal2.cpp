@@ -47,6 +47,17 @@ inline void SHACAL2_Rev(
 void SHACAL2::encrypt_n(const uint8_t in[], uint8_t out[], size_t blocks) const {
    assert_key_material_set();
 
+#if defined(BOTAN_HAS_SHACAL2_AVX512)
+   if(CPUID::has(CPUID::Feature::AVX512)) {
+      while(blocks >= 8) {
+         avx512_encrypt_8(in, out);
+         in += 8 * BLOCK_SIZE;
+         out += 8 * BLOCK_SIZE;
+         blocks -= 8;
+      }
+   }
+#endif
+
 #if defined(BOTAN_HAS_SHACAL2_X86)
    if(CPUID::has(CPUID::Feature::SHA)) {
       return x86_encrypt_blocks(in, out, blocks);
@@ -114,6 +125,17 @@ void SHACAL2::encrypt_n(const uint8_t in[], uint8_t out[], size_t blocks) const 
 */
 void SHACAL2::decrypt_n(const uint8_t in[], uint8_t out[], size_t blocks) const {
    assert_key_material_set();
+
+#if defined(BOTAN_HAS_SHACAL2_AVX512)
+   if(CPUID::has(CPUID::Feature::AVX512)) {
+      while(blocks >= 8) {
+         avx512_decrypt_8(in, out);
+         in += 8 * BLOCK_SIZE;
+         out += 8 * BLOCK_SIZE;
+         blocks -= 8;
+      }
+   }
+#endif
 
 #if defined(BOTAN_HAS_SHACAL2_AVX2)
    if(CPUID::has(CPUID::Feature::AVX2)) {
@@ -215,6 +237,12 @@ size_t SHACAL2::parallelism() const {
    }
 #endif
 
+#if defined(BOTAN_HAS_SHACAL2_AVX512)
+   if(CPUID::has(CPUID::Feature::AVX512)) {
+      return 8;
+   }
+#endif
+
 #if defined(BOTAN_HAS_SHACAL2_AVX2)
    if(CPUID::has(CPUID::Feature::AVX2)) {
       return 8;
@@ -231,6 +259,12 @@ size_t SHACAL2::parallelism() const {
 }
 
 std::string SHACAL2::provider() const {
+#if defined(BOTAN_HAS_SHACAL2_AVX512)
+   if(auto feat = CPUID::check(CPUID::Feature::AVX512)) {
+      return *feat;
+   }
+#endif
+
 #if defined(BOTAN_HAS_SHACAL2_X86)
    if(auto feat = CPUID::check(CPUID::Feature::SHA)) {
       return *feat;
