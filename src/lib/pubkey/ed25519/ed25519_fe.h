@@ -31,13 +31,9 @@ class FE_25519 {
       /**
       * Default zero initialization
       */
-      constexpr FE_25519() {
-         clear_mem(m_fe, 10);
-      }
+      constexpr FE_25519() { clear_mem(m_fe, 10); }
 
-      constexpr static FE_25519 zero() {
-         return FE_25519();
-      }
+      constexpr static FE_25519 zero() { return FE_25519(); }
 
       constexpr static FE_25519 one() {
          auto o = FE_25519();
@@ -45,9 +41,7 @@ class FE_25519 {
          return o;
       }
 
-      constexpr FE_25519(std::span<int32_t, 10> fe) {
-         copy_mem(m_fe, fe.data(), 10);
-      }
+      constexpr FE_25519(std::span<int32_t, 10> fe) { copy_mem(m_fe, fe.data(), 10); }
 
       constexpr FE_25519(int64_t h0,
                          int64_t h1,

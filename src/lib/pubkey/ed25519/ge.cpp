@@ -1899,21 +1899,21 @@ inline void select(ge_precomp& t, const ge_precomp base[8], int8_t b) {
 
    for(size_t i = 0; i != 10; ++i) {
       t.yplusx[i] = t.yplusx[i] ^ ((t.yplusx[i] ^ base[0].yplusx[i]) & mask1) ^
-                     ((t.yplusx[i] ^ base[1].yplusx[i]) & mask2) ^ ((t.yplusx[i] ^ base[2].yplusx[i]) & mask3) ^
-                     ((t.yplusx[i] ^ base[3].yplusx[i]) & mask4) ^ ((t.yplusx[i] ^ base[4].yplusx[i]) & mask5) ^
-                     ((t.yplusx[i] ^ base[5].yplusx[i]) & mask6) ^ ((t.yplusx[i] ^ base[6].yplusx[i]) & mask7) ^
-                     ((t.yplusx[i] ^ base[7].yplusx[i]) & mask8);
+                    ((t.yplusx[i] ^ base[1].yplusx[i]) & mask2) ^ ((t.yplusx[i] ^ base[2].yplusx[i]) & mask3) ^
+                    ((t.yplusx[i] ^ base[3].yplusx[i]) & mask4) ^ ((t.yplusx[i] ^ base[4].yplusx[i]) & mask5) ^
+                    ((t.yplusx[i] ^ base[5].yplusx[i]) & mask6) ^ ((t.yplusx[i] ^ base[6].yplusx[i]) & mask7) ^
+                    ((t.yplusx[i] ^ base[7].yplusx[i]) & mask8);
 
       t.yminusx[i] = t.yminusx[i] ^ ((t.yminusx[i] ^ base[0].yminusx[i]) & mask1) ^
-                      ((t.yminusx[i] ^ base[1].yminusx[i]) & mask2) ^ ((t.yminusx[i] ^ base[2].yminusx[i]) & mask3) ^
-                      ((t.yminusx[i] ^ base[3].yminusx[i]) & mask4) ^ ((t.yminusx[i] ^ base[4].yminusx[i]) & mask5) ^
-                      ((t.yminusx[i] ^ base[5].yminusx[i]) & mask6) ^ ((t.yminusx[i] ^ base[6].yminusx[i]) & mask7) ^
-                      ((t.yminusx[i] ^ base[7].yminusx[i]) & mask8);
+                     ((t.yminusx[i] ^ base[1].yminusx[i]) & mask2) ^ ((t.yminusx[i] ^ base[2].yminusx[i]) & mask3) ^
+                     ((t.yminusx[i] ^ base[3].yminusx[i]) & mask4) ^ ((t.yminusx[i] ^ base[4].yminusx[i]) & mask5) ^
+                     ((t.yminusx[i] ^ base[5].yminusx[i]) & mask6) ^ ((t.yminusx[i] ^ base[6].yminusx[i]) & mask7) ^
+                     ((t.yminusx[i] ^ base[7].yminusx[i]) & mask8);
 
       t.xy2d[i] = t.xy2d[i] ^ ((t.xy2d[i] ^ base[0].xy2d[i]) & mask1) ^ ((t.xy2d[i] ^ base[1].xy2d[i]) & mask2) ^
-                   ((t.xy2d[i] ^ base[2].xy2d[i]) & mask3) ^ ((t.xy2d[i] ^ base[3].xy2d[i]) & mask4) ^
-                   ((t.xy2d[i] ^ base[4].xy2d[i]) & mask5) ^ ((t.xy2d[i] ^ base[5].xy2d[i]) & mask6) ^
-                   ((t.xy2d[i] ^ base[6].xy2d[i]) & mask7) ^ ((t.xy2d[i] ^ base[7].xy2d[i]) & mask8);
+                  ((t.xy2d[i] ^ base[2].xy2d[i]) & mask3) ^ ((t.xy2d[i] ^ base[3].xy2d[i]) & mask4) ^
+                  ((t.xy2d[i] ^ base[4].xy2d[i]) & mask5) ^ ((t.xy2d[i] ^ base[5].xy2d[i]) & mask6) ^
+                  ((t.xy2d[i] ^ base[6].xy2d[i]) & mask7) ^ ((t.xy2d[i] ^ base[7].xy2d[i]) & mask8);
    }
 
    FE_25519 minus_xy2d = -t.xy2d;
