@@ -79,11 +79,11 @@ class FE_25519 {
 
       static FE_25519 deserialize(const uint8_t b[32]);
 
-      void to_bytes(uint8_t b[32]) const;
+      void serialize(uint8_t b[32]) const;
 
       bool is_zero() const {
          std::array<uint8_t, 32> value;
-         this->to_bytes(value.data());
+         this->serialize(value.data());
          return CT::all_zeros(value.data(), value.size()).as_bool();
       }
 
@@ -92,9 +92,9 @@ class FE_25519 {
       return 0 if f is in {0,2,4,...,q-1}
       */
       bool is_negative() const {
-         // TODO could avoid most of the to_bytes computation here
+         // TODO could avoid most of the serialize computation here
          uint8_t s[32];
-         this->to_bytes(s);
+         this->serialize(s);
          return s[0] & 1;
       }
 
@@ -140,8 +140,20 @@ class FE_25519 {
       int32_t m_fe[10];
 };
 
-inline void fe_tobytes(uint8_t* b, const FE_25519& x) {
-   x.to_bytes(b);
+inline FE_25519 operator+(const FE_25519& x, const FE_25519& y) {
+   return FE_25519::add(x, y);
+}
+
+inline FE_25519 operator-(const FE_25519& x, const FE_25519& y) {
+   return FE_25519::sub(x, y);
+}
+
+inline FE_25519 operator*(const FE_25519& x, const FE_25519& y) {
+   return FE_25519::mul(x, y);
+}
+
+inline FE_25519 operator-(const FE_25519& x) {
+   return FE_25519::negate(x);
 }
 
 inline int fe_isnonzero(const FE_25519& x) {
@@ -153,11 +165,11 @@ inline int fe_isnegative(const FE_25519& x) {
 }
 
 inline void fe_add(FE_25519& x, const FE_25519& a, const FE_25519& b) {
-   x = FE_25519::add(a, b);
+   x = a + b;
 }
 
 inline void fe_sub(FE_25519& x, const FE_25519& a, const FE_25519& b) {
-   x = FE_25519::sub(a, b);
+   x = a - b;
 }
 
 inline void fe_neg(FE_25519& x, const FE_25519& z) {
@@ -165,7 +177,7 @@ inline void fe_neg(FE_25519& x, const FE_25519& z) {
 }
 
 inline void fe_mul(FE_25519& x, const FE_25519& a, const FE_25519& b) {
-   x = FE_25519::mul(a, b);
+   x = a * b;
 }
 
 inline void fe_sq(FE_25519& x, const FE_25519& z) {

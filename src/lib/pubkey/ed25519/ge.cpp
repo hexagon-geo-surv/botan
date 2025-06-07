@@ -411,7 +411,7 @@ void ge_tobytes(uint8_t* s, const ge_p2* h) {
    fe_invert(recip, h->Z);
    fe_mul(x, h->X, recip);
    fe_mul(y, h->Y, recip);
-   fe_tobytes(s, y);
+   y.serialize(s);
    s[31] ^= fe_isnegative(x) << 7;
 }
 
@@ -2026,7 +2026,7 @@ void ge_p3_tobytes(uint8_t* s, const ge_p3* h) {
    fe_invert(recip, h->Z);
    fe_mul(x, h->X, recip);
    fe_mul(y, h->Y, recip);
-   fe_tobytes(s, y);
+   y.serialize(s);
    s[31] ^= fe_isnegative(x) << 7;
 }
 

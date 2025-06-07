@@ -648,7 +648,7 @@ Have q+2^(-255)x = 2^(-255)(h + 19 2^(-25) h9 + 2^(-1))
 so floor(2^(-255)(h + 19 2^(-25) h9 + 2^(-1))) = q.
 */
 
-void FE_25519::to_bytes(uint8_t s[32]) const {
+void FE_25519::serialize(uint8_t s[32]) const {
    const int64_t X25 = (1 << 25);
 
    int32_t h0 = m_fe[0];
