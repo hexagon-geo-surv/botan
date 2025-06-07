@@ -125,7 +125,7 @@ class FE_25519 {
       static FE_25519 mul(const FE_25519& a, const FE_25519& b);
       static FE_25519 sqr_iter(const FE_25519& a, size_t iter);
 
-      static FE_25519 sqr(const FE_25519& a) { return sqr_iter(a, 1); }
+      FE_25519 sqr() const { return sqr_iter(*this, 1); }
 
       // Return 2*a^2
       static FE_25519 sqr2(const FE_25519& a);
@@ -167,7 +167,7 @@ inline int fe_isnegative(const FE_25519& x) {
 }
 
 inline void fe_sq(FE_25519& x, const FE_25519& z) {
-   x = FE_25519::sqr(z);
+   x = z.sqr();
 }
 
 inline void fe_sq_iter(FE_25519& x, const FE_25519& z, size_t iter) {
