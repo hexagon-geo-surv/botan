@@ -15,15 +15,15 @@
 namespace Botan {
 
 //static
-FE_25519 FE_25519::invert(const FE_25519& z) {
+FE_25519 FE_25519::invert() const {
    FE_25519 t0;
    FE_25519 t1;
    FE_25519 t2;
    FE_25519 t3;
 
-   t0 = z.sqr();
+   t0 = this->sqr();
    fe_sq_iter(t1, t0, 2);
-   t1 = z * t1;
+   t1 = *this * t1;
    t0 = t0 * t1;
    t2 = t0.sqr();
    t1 = t1 * t2;
@@ -472,17 +472,17 @@ See fe_mul.c for discussion of implementation strategy.
 */
 
 //static
-FE_25519 FE_25519::sqr2(const FE_25519& f) {
-   const int32_t f0 = f[0];
-   const int32_t f1 = f[1];
-   const int32_t f2 = f[2];
-   const int32_t f3 = f[3];
-   const int32_t f4 = f[4];
-   const int32_t f5 = f[5];
-   const int32_t f6 = f[6];
-   const int32_t f7 = f[7];
-   const int32_t f8 = f[8];
-   const int32_t f9 = f[9];
+FE_25519 FE_25519::sqr2() const {
+   const int32_t f0 = m_fe[0];
+   const int32_t f1 = m_fe[1];
+   const int32_t f2 = m_fe[2];
+   const int32_t f3 = m_fe[3];
+   const int32_t f4 = m_fe[4];
+   const int32_t f5 = m_fe[5];
+   const int32_t f6 = m_fe[6];
+   const int32_t f7 = m_fe[7];
+   const int32_t f8 = m_fe[8];
+   const int32_t f9 = m_fe[9];
    const int32_t f0_2 = 2 * f0;
    const int32_t f1_2 = 2 * f1;
    const int32_t f2_2 = 2 * f2;

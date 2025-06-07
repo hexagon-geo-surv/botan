@@ -128,10 +128,11 @@ class FE_25519 {
       FE_25519 sqr() const { return sqr_iter(*this, 1); }
 
       // Return 2*a^2
-      static FE_25519 sqr2(const FE_25519& a);
+      FE_25519 sqr2() const;
+
+      FE_25519 invert() const;
 
       static FE_25519 pow_22523(const FE_25519& a);
-      static FE_25519 invert(const FE_25519& a);
 
       // TODO remove
       int32_t operator[](size_t i) const { return m_fe[i]; }
@@ -170,12 +171,8 @@ inline void fe_sq_iter(FE_25519& x, const FE_25519& z, size_t iter) {
    x = FE_25519::sqr_iter(z, iter);
 }
 
-inline void fe_sq2(FE_25519& x, const FE_25519& z) {
-   x = FE_25519::sqr2(z);
-}
-
 inline void fe_invert(FE_25519& x, const FE_25519& z) {
-   x = FE_25519::invert(z);
+   x = z.invert();
 }
 
 inline void fe_pow22523(FE_25519& x, const FE_25519& y) {

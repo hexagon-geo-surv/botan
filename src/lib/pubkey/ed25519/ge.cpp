@@ -196,7 +196,7 @@ void ge_p2_dbl(ge_p1p1* r, const ge_p2* p) {
    r->Z = p->Y.sqr();
 
    /* qhasm: B=2*Z1^2 */
-   fe_sq2(r->T, p->Z);
+   r->T = p->Z.sqr2();
 
    /* qhasm: A=X1+Y1 */
    r->Y = p->X + p->Y;
