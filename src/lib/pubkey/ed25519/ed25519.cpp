@@ -17,7 +17,7 @@
 
 namespace Botan {
 
-void ed25519_gen_keypair(uint8_t* pk, uint8_t* sk, const uint8_t seed[32]) {
+void ed25519_gen_keypair(uint8_t pk[32], uint8_t sk[64], const uint8_t seed[32]) {
    uint8_t az[64];
 
    SHA_512 sha;
@@ -29,7 +29,6 @@ void ed25519_gen_keypair(uint8_t* pk, uint8_t* sk, const uint8_t seed[32]) {
 
    ge_scalarmult_base(pk, az);
 
-   // todo copy_mem
    copy_mem(sk, seed, 32);
    copy_mem(sk + 32, pk, 32);
 }

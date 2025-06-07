@@ -1,6 +1,7 @@
 /*
 * Ed25519 field element
 * (C) 2017 Ribose Inc
+*     2025 Jack Lloyd
 *
 * Based on the public domain code from SUPERCOP ref10 by
 * Peter Schwabe, Daniel J. Bernstein, Niels Duif, Tanja Lange, Bo-Yin Yang
@@ -13,44 +14,51 @@
 
 #include <botan/exceptn.h>
 #include <botan/mem_ops.h>
+#include <botan/internal/ct_utils.h>
+#include <array>
 
 namespace Botan {
 
 /**
 * An element of the field \\Z/(2^255-19)
+*
+* An element t, entries t[0]...t[9], represents the integer
+* t[0]+2^26 t[1]+2^51 t[2]+2^77 t[3]+2^102 t[4]+...+2^230 t[9].
+* Bounds on each t[i] vary depending on context.
 */
 class FE_25519 {
    public:
-      ~FE_25519() { secure_scrub_memory(m_fe, sizeof(m_fe)); }
-
       /**
-      * Zero element
+      * Default zero initialization
       */
-      FE_25519(int init = 0) {
-         if(init != 0 && init != 1) {
-            throw Invalid_Argument("Invalid FE_25519 initial value");
-         }
+      constexpr FE_25519() {
          clear_mem(m_fe, 10);
-         m_fe[0] = init;
       }
 
-      FE_25519(std::initializer_list<int32_t> x) {
-         if(x.size() != 10) {
-            throw Invalid_Argument("Invalid FE_25519 initializer list");
-         }
-         copy_mem(m_fe, x.begin(), 10);
+      constexpr static FE_25519 zero() {
+         return FE_25519();
       }
 
-      FE_25519(int64_t h0,
-               int64_t h1,
-               int64_t h2,
-               int64_t h3,
-               int64_t h4,
-               int64_t h5,
-               int64_t h6,
-               int64_t h7,
-               int64_t h8,
-               int64_t h9) {
+      constexpr static FE_25519 one() {
+         auto o = FE_25519();
+         o.m_fe[0] = 1;
+         return o;
+      }
+
+      constexpr FE_25519(std::span<int32_t, 10> fe) {
+         copy_mem(m_fe, fe.data(), 10);
+      }
+
+      constexpr FE_25519(int64_t h0,
+                         int64_t h1,
+                         int64_t h2,
+                         int64_t h3,
+                         int64_t h4,
+                         int64_t h5,
+                         int64_t h6,
+                         int64_t h7,
+                         int64_t h8,
+                         int64_t h9) {
          m_fe[0] = static_cast<int32_t>(h0);
          m_fe[1] = static_cast<int32_t>(h1);
          m_fe[2] = static_cast<int32_t>(h2);
@@ -63,25 +71,20 @@ class FE_25519 {
          m_fe[9] = static_cast<int32_t>(h9);
       }
 
-      FE_25519(const FE_25519& other) = default;
-      FE_25519& operator=(const FE_25519& other) = default;
+      constexpr FE_25519(const FE_25519& other) = default;
+      constexpr FE_25519& operator=(const FE_25519& other) = default;
 
-      FE_25519(FE_25519&& other) = default;
-      FE_25519& operator=(FE_25519&& other) = default;
+      constexpr FE_25519(FE_25519&& other) = default;
+      constexpr FE_25519& operator=(FE_25519&& other) = default;
 
-      void from_bytes(const uint8_t b[32]);
+      static FE_25519 deserialize(const uint8_t b[32]);
+
       void to_bytes(uint8_t b[32]) const;
 
       bool is_zero() const {
-         uint8_t s[32];
-         to_bytes(s);
-
-         uint8_t sum = 0;
-         for(size_t i = 0; i != 32; ++i) {
-            sum |= s[i];
-         }
-
-         return (sum == 0);
+         std::array<uint8_t, 32> value;
+         this->to_bytes(value.data());
+         return CT::all_zeros(value.data(), value.size()).as_bool();
       }
 
       /*
@@ -91,7 +94,7 @@ class FE_25519 {
       bool is_negative() const {
          // TODO could avoid most of the to_bytes computation here
          uint8_t s[32];
-         to_bytes(s);
+         this->to_bytes(s);
          return s[0] & 1;
       }
 
@@ -137,24 +140,8 @@ class FE_25519 {
       int32_t m_fe[10];
 };
 
-/*
-fe means field element.
-Here the field is
-An element t, entries t[0]...t[9], represents the integer
-t[0]+2^26 t[1]+2^51 t[2]+2^77 t[3]+2^102 t[4]+...+2^230 t[9].
-Bounds on each t[i] vary depending on context.
-*/
-
-inline void fe_frombytes(FE_25519& x, const uint8_t* b) {
-   x.from_bytes(b);
-}
-
 inline void fe_tobytes(uint8_t* b, const FE_25519& x) {
    x.to_bytes(b);
-}
-
-inline void fe_copy(FE_25519& a, const FE_25519& b) {
-   a = b;
 }
 
 inline int fe_isnonzero(const FE_25519& x) {
@@ -163,14 +150,6 @@ inline int fe_isnonzero(const FE_25519& x) {
 
 inline int fe_isnegative(const FE_25519& x) {
    return x.is_negative();
-}
-
-inline void fe_0(FE_25519& x) {
-   x = FE_25519();
-}
-
-inline void fe_1(FE_25519& x) {
-   x = FE_25519(1);
 }
 
 inline void fe_add(FE_25519& x, const FE_25519& a, const FE_25519& b) {

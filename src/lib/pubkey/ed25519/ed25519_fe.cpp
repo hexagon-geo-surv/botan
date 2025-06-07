@@ -596,8 +596,7 @@ FE_25519 FE_25519::sqr2(const FE_25519& f) {
 /*
 Ignores top bit of h.
 */
-
-void FE_25519::from_bytes(const uint8_t s[32]) {
+FE_25519 FE_25519::deserialize(const uint8_t s[32]) {
    int64_t h0 = load_4(s);
    int64_t h1 = load_3(s + 4) << 6;
    int64_t h2 = load_3(s + 7) << 5;
@@ -621,16 +620,7 @@ void FE_25519::from_bytes(const uint8_t s[32]) {
    carry<26>(h6, h7);
    carry<26>(h8, h9);
 
-   m_fe[0] = static_cast<int32_t>(h0);
-   m_fe[1] = static_cast<int32_t>(h1);
-   m_fe[2] = static_cast<int32_t>(h2);
-   m_fe[3] = static_cast<int32_t>(h3);
-   m_fe[4] = static_cast<int32_t>(h4);
-   m_fe[5] = static_cast<int32_t>(h5);
-   m_fe[6] = static_cast<int32_t>(h6);
-   m_fe[7] = static_cast<int32_t>(h7);
-   m_fe[8] = static_cast<int32_t>(h8);
-   m_fe[9] = static_cast<int32_t>(h9);
+   return FE_25519(h0, h1, h2, h3, h4, h5, h6, h7, h8, h9);
 }
 
 /*

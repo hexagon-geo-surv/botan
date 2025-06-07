@@ -1,6 +1,7 @@
 /*
 * Ed25519 group operations
 * (C) 2017 Ribose Inc
+*     2025 Jack Lloyd
 *
 * Based on the public domain code from SUPERCOP ref10 by
 * Peter Schwabe, Daniel J. Bernstein, Niels Duif, Tanja Lange, Bo-Yin Yang
@@ -278,10 +279,10 @@ void ge_p2_dbl(ge_p1p1* r, const ge_p2* p) {
 }
 
 void ge_p3_0(ge_p3* h) {
-   fe_0(h->X);
-   fe_1(h->Y);
-   fe_1(h->Z);
-   fe_0(h->T);
+   h->X = FE_25519::zero();
+   h->Y = FE_25519::one();
+   h->Z = FE_25519::one();
+   h->T = FE_25519::zero();
 }
 
 /*
@@ -306,7 +307,7 @@ void ge_p3_to_cached(ge_cached* r, const ge_p3* p) {
       -21827239, -5839606, -30745221, 13898782, 229458, 15978800, -12551817, -6495438, 29715968, 9444199};
    fe_add(r->YplusX, p->Y, p->X);
    fe_sub(r->YminusX, p->Y, p->X);
-   fe_copy(r->Z, p->Z);
+   r->Z = p->Z;
    fe_mul(r->T2d, p->T, d2);
 }
 
@@ -415,9 +416,9 @@ void ge_tobytes(uint8_t* s, const ge_p2* h) {
 }
 
 void ge_p2_0(ge_p2* h) {
-   fe_0(h->X);
-   fe_1(h->Y);
-   fe_1(h->Z);
+   h->X = FE_25519::zero();
+   h->Y = FE_25519::one();
+   h->Z = FE_25519::one();
 }
 
 }  // namespace
@@ -434,8 +435,8 @@ int ge_frombytes_negate_vartime(ge_p3* h, const uint8_t* s) {
    FE_25519 vxx;
    FE_25519 check;
 
-   fe_frombytes(h->Y, s);
-   fe_1(h->Z);
+   h->Y = FE_25519::deserialize(s);
+   h->Z = FE_25519::one();
    fe_sq(u, h->Y);
    fe_mul(v, u, d);
    fe_sub(u, u, h->Z); /* u = y^2-1 */
@@ -1963,9 +1964,9 @@ inline uint8_t negative(int8_t b) {
 }
 
 inline void ge_precomp_0(ge_precomp* h) {
-   fe_1(h->yplusx);
-   fe_1(h->yminusx);
-   fe_0(h->xy2d);
+   h->yplusx = FE_25519::one();
+   h->yminusx = FE_25519::one();
+   h->xy2d = FE_25519::zero();
 }
 
 inline void select(ge_precomp* t, const ge_precomp* base, int8_t b) {
