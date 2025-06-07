@@ -93,8 +93,9 @@ ge_p1p1 ge_add(const ge_p3& p, const ge_cached& q) {
 /*
 r = p + q
 */
-void ge_madd(ge_p1p1& r, const ge_p3& p, const ge_precomp& q) {
-   FE_25519 t0;
+ge_p1p1 ge_madd(const ge_p3& p, const ge_precomp& q) {
+   ge_p1p1 r;
+
    /* qhasm: YpX1 = Y1+X1 */
    r.X = p.Y + p.X;
 
@@ -111,7 +112,7 @@ void ge_madd(ge_p1p1& r, const ge_p3& p, const ge_precomp& q) {
    r.T = q.xy2d * p.T;
 
    /* qhasm: D = 2*Z1 */
-   t0 = p.Z + p.Z;
+   auto t0 = p.Z + p.Z;
 
    /* qhasm: X3 = A-B */
    r.X = r.Z - r.Y;
@@ -124,14 +125,16 @@ void ge_madd(ge_p1p1& r, const ge_p3& p, const ge_precomp& q) {
 
    /* qhasm: T3 = D-C */
    r.T = t0 - r.T;
+
+   return r;
 }
 
 /*
 r = p - q
 */
 
-void ge_msub(ge_p1p1& r, const ge_p3& p, const ge_precomp& q) {
-   FE_25519 t0;
+ge_p1p1 ge_msub(const ge_p3& p, const ge_precomp& q) {
+   ge_p1p1 r;
 
    /* qhasm: YpX1 = Y1+X1 */
    r.X = p.Y + p.X;
@@ -149,7 +152,7 @@ void ge_msub(ge_p1p1& r, const ge_p3& p, const ge_precomp& q) {
    r.T = q.xy2d * p.T;
 
    /* qhasm: D = 2*Z1 */
-   t0 = p.Z + p.Z;
+   auto t0 = p.Z + p.Z;
 
    /* qhasm: X3 = A-B */
    r.X = r.Z - r.Y;
@@ -162,6 +165,8 @@ void ge_msub(ge_p1p1& r, const ge_p3& p, const ge_precomp& q) {
 
    /* qhasm: T3 = D+C */
    r.T = t0 + r.T;
+
+   return r;
 }
 
 /*
@@ -505,10 +510,10 @@ void ge_double_scalarmult_vartime(uint8_t out[32], const uint8_t* a, const ge_p3
 
       if(bslide[i] > 0) {
          u = ge_p1p1_to_p3(t);
-         ge_madd(t, u, Bi[bslide[i] >> 1]);
+         t = ge_madd(u, Bi[bslide[i] >> 1]);
       } else if(bslide[i] < 0) {
          u = ge_p1p1_to_p3(t);
-         ge_msub(t, u, Bi[(-bslide[i]) >> 1]);
+         t = ge_msub(u, Bi[(-bslide[i]) >> 1]);
       }
 
       r = ge_p1p1_to_p2(t);
@@ -1990,7 +1995,7 @@ void ge_scalarmult_base(uint8_t out[32], const uint8_t a[32]) {
    ge_p3_0(h);
    for(i = 1; i < 64; i += 2) {
       select(t, B_precomp[i / 2], e[i]);
-      ge_madd(r, h, t);
+      r = ge_madd(h, t);
       h = ge_p1p1_to_p3(r);
    }
 
@@ -2005,7 +2010,7 @@ void ge_scalarmult_base(uint8_t out[32], const uint8_t a[32]) {
 
    for(i = 0; i < 64; i += 2) {
       select(t, B_precomp[i / 2], e[i]);
-      ge_madd(r, h, t);
+      r = ge_madd(h, t);
       h = ge_p1p1_to_p3(r);
    }
 
