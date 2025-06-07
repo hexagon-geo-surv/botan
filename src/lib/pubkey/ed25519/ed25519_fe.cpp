@@ -21,11 +21,11 @@ FE_25519 FE_25519::invert(const FE_25519& z) {
    FE_25519 t2;
    FE_25519 t3;
 
-   fe_sq(t0, z);
+   t0 = z.sqr();
    fe_sq_iter(t1, t0, 2);
    t1 = z * t1;
    t0 = t0 * t1;
-   fe_sq(t2, t0);
+   t2 = t0.sqr();
    t1 = t1 * t2;
    fe_sq_iter(t2, t1, 5);
    t1 = t2 * t1;
@@ -52,11 +52,11 @@ FE_25519 FE_25519::pow_22523(const FE_25519& z) {
    FE_25519 t1;
    FE_25519 t2;
 
-   fe_sq(t0, z);
+   t0 = z.sqr();
    fe_sq_iter(t1, t0, 2);
    t1 = z * t1;
    t0 = t0 * t1;
-   fe_sq(t0, t0);
+   t0 = t0.sqr();
    t0 = t1 * t0;
    fe_sq_iter(t1, t0, 5);
    t0 = t1 * t0;

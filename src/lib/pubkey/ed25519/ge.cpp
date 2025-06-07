@@ -190,10 +190,10 @@ r = 2 * p
 void ge_p2_dbl(ge_p1p1* r, const ge_p2* p) {
    FE_25519 t0;
    /* qhasm: XX=X1^2 */
-   fe_sq(r->X, p->X);
+   r->X = p->X.sqr();
 
    /* qhasm: YY=Y1^2 */
-   fe_sq(r->Z, p->Y);
+   r->Z = p->Y.sqr();
 
    /* qhasm: B=2*Z1^2 */
    fe_sq2(r->T, p->Z);
@@ -202,7 +202,7 @@ void ge_p2_dbl(ge_p1p1* r, const ge_p2* p) {
    r->Y = p->X + p->Y;
 
    /* qhasm: AA=A^2 */
-   fe_sq(t0, r->Y);
+   t0 = r->Y.sqr();
 
    /* qhasm: Y3=YY+XX */
    r->Y = r->Z + r->X;
@@ -354,14 +354,14 @@ int ge_frombytes_negate_vartime(ge_p3* h, const uint8_t* s) {
 
    h->Y = FE_25519::deserialize(s);
    h->Z = FE_25519::one();
-   fe_sq(u, h->Y);
+   u = h->Y.sqr();
    v = u * d;
    u = u - h->Z; /* u = y^2-1 */
    v = v + h->Z; /* v = dy^2+1 */
 
-   fe_sq(v3, v);
+   v3 = v.sqr();
    v3 = v3 * v; /* v3 = v^3 */
-   fe_sq(h->X, v3);
+   h->X = v3.sqr();
    h->X = h->X * v;
    h->X = h->X * u; /* x = uv^7 */
 
@@ -369,7 +369,7 @@ int ge_frombytes_negate_vartime(ge_p3* h, const uint8_t* s) {
    h->X = h->X * v3;
    h->X = h->X * u; /* x = uv^3(uv^7)^((q-5)/8) */
 
-   fe_sq(vxx, h->X);
+   vxx = h->X.sqr();
    vxx = vxx * v;
    check = vxx - u; /* vx^2-u */
    if(fe_isnonzero(check)) {
