@@ -83,10 +83,10 @@ struct ge_p3 {
       FE_25519 T;
 };
 
-int ge_frombytes_negate_vartime(ge_p3* v, const uint8_t*);
+int ge_frombytes_negate_vartime(ge_p3& v, const uint8_t*);
 void ge_scalarmult_base(uint8_t out[32], const uint8_t in[32]);
 
-void ge_double_scalarmult_vartime(uint8_t out[32], const uint8_t a[], const ge_p3* A, const uint8_t b[]);
+void ge_double_scalarmult_vartime(uint8_t out[32], const uint8_t a[], const ge_p3& A, const uint8_t b[]);
 
 /*
 The set of scalars is \Z/l

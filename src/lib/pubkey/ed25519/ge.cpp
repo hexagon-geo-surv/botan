@@ -52,242 +52,243 @@ struct ge_cached {
 r = p + q
 */
 
-void ge_add(ge_p1p1* r, const ge_p3* p, const ge_cached* q) {
-   FE_25519 t0;
+void ge_add(ge_p1p1& r, const ge_p3& p, const ge_cached& q) {
    /* qhasm: YpX1 = Y1+X1 */
-   r->X = p->Y + p->X;
+   r.X = p.Y + p.X;
 
    /* qhasm: YmX1 = Y1-X1 */
-   r->Y = p->Y - p->X;
+   r.Y = p.Y - p.X;
 
    /* qhasm: A = YpX1*YpX2 */
-   r->Z = r->X * q->YplusX;
+   r.Z = r.X * q.YplusX;
 
    /* qhasm: B = YmX1*YmX2 */
-   r->Y = r->Y * q->YminusX;
+   r.Y = r.Y * q.YminusX;
 
    /* qhasm: C = T2d2*T1 */
-   r->T = q->T2d * p->T;
+   r.T = q.T2d * p.T;
 
    /* qhasm: ZZ = Z1*Z2 */
-   r->X = p->Z * q->Z;
+   r.X = p.Z * q.Z;
 
    /* qhasm: D = 2*ZZ */
-   t0 = r->X + r->X;
+   auto t0 = r.X + r.X;
 
    /* qhasm: X3 = A-B */
-   r->X = r->Z - r->Y;
+   r.X = r.Z - r.Y;
 
    /* qhasm: Y3 = A+B */
-   r->Y = r->Z + r->Y;
+   r.Y = r.Z + r.Y;
 
    /* qhasm: Z3 = D+C */
-   r->Z = t0 + r->T;
+   r.Z = t0 + r.T;
 
    /* qhasm: T3 = D-C */
-   r->T = t0 - r->T;
+   r.T = t0 - r.T;
 }
 
 /*
 r = p + q
 */
-void ge_madd(ge_p1p1* r, const ge_p3* p, const ge_precomp* q) {
+void ge_madd(ge_p1p1& r, const ge_p3& p, const ge_precomp& q) {
    FE_25519 t0;
    /* qhasm: YpX1 = Y1+X1 */
-   r->X = p->Y + p->X;
+   r.X = p.Y + p.X;
 
    /* qhasm: YmX1 = Y1-X1 */
-   r->Y = p->Y - p->X;
+   r.Y = p.Y - p.X;
 
    /* qhasm: A = YpX1*ypx2 */
-   r->Z = r->X * q->yplusx;
+   r.Z = r.X * q.yplusx;
 
    /* qhasm: B = YmX1*ymx2 */
-   r->Y = r->Y * q->yminusx;
+   r.Y = r.Y * q.yminusx;
 
    /* qhasm: C = xy2d2*T1 */
-   r->T = q->xy2d * p->T;
+   r.T = q.xy2d * p.T;
 
    /* qhasm: D = 2*Z1 */
-   t0 = p->Z + p->Z;
+   t0 = p.Z + p.Z;
 
    /* qhasm: X3 = A-B */
-   r->X = r->Z - r->Y;
+   r.X = r.Z - r.Y;
 
    /* qhasm: Y3 = A+B */
-   r->Y = r->Z + r->Y;
+   r.Y = r.Z + r.Y;
 
    /* qhasm: Z3 = D+C */
-   r->Z = t0 + r->T;
+   r.Z = t0 + r.T;
 
    /* qhasm: T3 = D-C */
-   r->T = t0 - r->T;
+   r.T = t0 - r.T;
 }
 
 /*
 r = p - q
 */
 
-void ge_msub(ge_p1p1* r, const ge_p3* p, const ge_precomp* q) {
+void ge_msub(ge_p1p1& r, const ge_p3& p, const ge_precomp& q) {
    FE_25519 t0;
 
    /* qhasm: YpX1 = Y1+X1 */
-   r->X = p->Y + p->X;
+   r.X = p.Y + p.X;
 
    /* qhasm: YmX1 = Y1-X1 */
-   r->Y = p->Y - p->X;
+   r.Y = p.Y - p.X;
 
    /* qhasm: A = YpX1*ymx2 */
-   r->Z = r->X * q->yminusx;
+   r.Z = r.X * q.yminusx;
 
    /* qhasm: B = YmX1*ypx2 */
-   r->Y = r->Y * q->yplusx;
+   r.Y = r.Y * q.yplusx;
 
    /* qhasm: C = xy2d2*T1 */
-   r->T = q->xy2d * p->T;
+   r.T = q.xy2d * p.T;
 
    /* qhasm: D = 2*Z1 */
-   t0 = p->Z + p->Z;
+   t0 = p.Z + p.Z;
 
    /* qhasm: X3 = A-B */
-   r->X = r->Z - r->Y;
+   r.X = r.Z - r.Y;
 
    /* qhasm: Y3 = A+B */
-   r->Y = r->Z + r->Y;
+   r.Y = r.Z + r.Y;
 
    /* qhasm: Z3 = D-C */
-   r->Z = t0 - r->T;
+   r.Z = t0 - r.T;
 
    /* qhasm: T3 = D+C */
-   r->T = t0 + r->T;
+   r.T = t0 + r.T;
 }
 
 /*
 r = p
 */
 
-void ge_p1p1_to_p2(ge_p2* r, const ge_p1p1* p) {
-   r->X = p->X * p->T;
-   r->Y = p->Y * p->Z;
-   r->Z = p->Z * p->T;
+void ge_p1p1_to_p2(ge_p2& r, const ge_p1p1& p) {
+   r.X = p.X * p.T;
+   r.Y = p.Y * p.Z;
+   r.Z = p.Z * p.T;
 }
 
 /*
 r = p
 */
 
-void ge_p1p1_to_p3(ge_p3* r, const ge_p1p1* p) {
-   r->X = p->X * p->T;
-   r->Y = p->Y * p->Z;
-   r->Z = p->Z * p->T;
-   r->T = p->X * p->Y;
+void ge_p1p1_to_p3(ge_p3& r, const ge_p1p1& p) {
+   r.X = p.X * p.T;
+   r.Y = p.Y * p.Z;
+   r.Z = p.Z * p.T;
+   r.T = p.X * p.Y;
 }
 
 /*
 r = 2 * p
 */
 
-void ge_p2_dbl(ge_p1p1* r, const ge_p2* p) {
+void ge_p2_dbl(ge_p1p1& r, const ge_p2& p) {
    FE_25519 t0;
    /* qhasm: XX=X1^2 */
-   r->X = p->X.sqr();
+   r.X = p.X.sqr();
 
    /* qhasm: YY=Y1^2 */
-   r->Z = p->Y.sqr();
+   r.Z = p.Y.sqr();
 
    /* qhasm: B=2*Z1^2 */
-   r->T = p->Z.sqr2();
+   r.T = p.Z.sqr2();
 
    /* qhasm: A=X1+Y1 */
-   r->Y = p->X + p->Y;
+   r.Y = p.X + p.Y;
 
    /* qhasm: AA=A^2 */
-   t0 = r->Y.sqr();
+   t0 = r.Y.sqr();
 
    /* qhasm: Y3=YY+XX */
-   r->Y = r->Z + r->X;
+   r.Y = r.Z + r.X;
 
    /* qhasm: Z3=YY-XX */
-   r->Z = r->Z - r->X;
+   r.Z = r.Z - r.X;
 
    /* qhasm: X3=AA-Y3 */
-   r->X = t0 - r->Y;
+   r.X = t0 - r.Y;
 
    /* qhasm: T3=B-Z3 */
-   r->T = r->T - r->Z;
+   r.T = r.T - r.Z;
 }
 
-void ge_p3_0(ge_p3* h) {
-   h->X = FE_25519::zero();
-   h->Y = FE_25519::one();
-   h->Z = FE_25519::one();
-   h->T = FE_25519::zero();
+void ge_p3_0(ge_p3& h) {
+   h.X = FE_25519::zero();
+   h.Y = FE_25519::one();
+   h.Z = FE_25519::one();
+   h.T = FE_25519::zero();
 }
 
 /*
 r = 2 * p
 */
 
-void ge_p3_dbl(ge_p1p1* r, const ge_p3* p) {
+void ge_p3_dbl(ge_p1p1& r, const ge_p3& p) {
    ge_p2 q;
    // Convert to p2 rep
-   q.X = p->X;
-   q.Y = p->Y;
-   q.Z = p->Z;
-   ge_p2_dbl(r, &q);
+   q.X = p.X;
+   q.Y = p.Y;
+   q.Z = p.Z;
+   ge_p2_dbl(r, q);
 }
 
 /*
 r = p
 */
 
-void ge_p3_to_cached(ge_cached* r, const ge_p3* p) {
-   static const FE_25519 d2 = {
+ge_cached ge_p3_to_cached(const ge_p3& p) {
+   static constexpr FE_25519 d2 = {
       -21827239, -5839606, -30745221, 13898782, 229458, 15978800, -12551817, -6495438, 29715968, 9444199};
-   r->YplusX = p->Y + p->X;
-   r->YminusX = p->Y - p->X;
-   r->Z = p->Z;
-   r->T2d = p->T * d2;
+   ge_cached r;
+   r.YplusX = p.Y + p.X;
+   r.YminusX = p.Y - p.X;
+   r.Z = p.Z;
+   r.T2d = p.T * d2;
+   return r;
 }
 
 /*
 r = p - q
 */
 
-void ge_sub(ge_p1p1* r, const ge_p3* p, const ge_cached* q) {
+void ge_sub(ge_p1p1& r, const ge_p3& p, const ge_cached& q) {
    FE_25519 t0;
    /* qhasm: YpX1 = Y1+X1 */
-   r->X = p->Y + p->X;
+   r.X = p.Y + p.X;
 
    /* qhasm: YmX1 = Y1-X1 */
-   r->Y = p->Y - p->X;
+   r.Y = p.Y - p.X;
 
    /* qhasm: A = YpX1*YmX2 */
-   r->Z = r->X * q->YminusX;
+   r.Z = r.X * q.YminusX;
 
    /* qhasm: B = YmX1*YpX2 */
-   r->Y = r->Y * q->YplusX;
+   r.Y = r.Y * q.YplusX;
 
    /* qhasm: C = T2d2*T1 */
-   r->T = q->T2d * p->T;
+   r.T = q.T2d * p.T;
 
    /* qhasm: ZZ = Z1*Z2 */
-   r->X = p->Z * q->Z;
+   r.X = p.Z * q.Z;
 
    /* qhasm: D = 2*ZZ */
-   t0 = r->X + r->X;
+   t0 = r.X + r.X;
 
    /* qhasm: X3 = A-B */
-   r->X = r->Z - r->Y;
+   r.X = r.Z - r.Y;
 
    /* qhasm: Y3 = A+B */
-   r->Y = r->Z + r->Y;
+   r.Y = r.Z + r.Y;
 
    /* qhasm: Z3 = D-C */
-   r->Z = t0 - r->T;
+   r.Z = t0 - r.T;
 
    /* qhasm: T3 = D+C */
-   r->T = t0 + r->T;
+   r.T = t0 + r.T;
 }
 
 void slide(int8_t* r, const uint8_t* a) {
@@ -320,23 +321,23 @@ void slide(int8_t* r, const uint8_t* a) {
    }
 }
 
-void ge_tobytes(uint8_t* s, const ge_p2* h) {
-   auto recip = h->Z.invert();
-   auto x = h->X * recip;
-   auto y = h->Y * recip;
+void ge_tobytes(uint8_t* s, const ge_p2& h) {
+   auto recip = h.Z.invert();
+   auto x = h.X * recip;
+   auto y = h.Y * recip;
    y.serialize(s);
    s[31] ^= x.is_negative() ? 0x80 : 0x00;
 }
 
-void ge_p2_0(ge_p2* h) {
-   h->X = FE_25519::zero();
-   h->Y = FE_25519::one();
-   h->Z = FE_25519::one();
+void ge_p2_0(ge_p2& h) {
+   h.X = FE_25519::zero();
+   h.Y = FE_25519::one();
+   h.Z = FE_25519::one();
 }
 
 }  // namespace
 
-int ge_frombytes_negate_vartime(ge_p3* h, const uint8_t* s) {
+int ge_frombytes_negate_vartime(ge_p3& h, const uint8_t* s) {
    static const FE_25519 d = {
       -10913610, 13857413, -15372611, 6949391, 114729, -8787816, -6275908, -3247719, -18696448, -12055116};
    static const FE_25519 sqrtm1 = {
@@ -348,24 +349,24 @@ int ge_frombytes_negate_vartime(ge_p3* h, const uint8_t* s) {
    FE_25519 vxx;
    FE_25519 check;
 
-   h->Y = FE_25519::deserialize(s);
-   h->Z = FE_25519::one();
-   u = h->Y.sqr();
+   h.Y = FE_25519::deserialize(s);
+   h.Z = FE_25519::one();
+   u = h.Y.sqr();
    v = u * d;
-   u = u - h->Z; /* u = y^2-1 */
-   v = v + h->Z; /* v = dy^2+1 */
+   u = u - h.Z; /* u = y^2-1 */
+   v = v + h.Z; /* v = dy^2+1 */
 
    v3 = v.sqr();
    v3 = v3 * v; /* v3 = v^3 */
-   h->X = v3.sqr();
-   h->X = h->X * v;
-   h->X = h->X * u; /* x = uv^7 */
+   h.X = v3.sqr();
+   h.X = h.X * v;
+   h.X = h.X * u; /* x = uv^7 */
 
-   h->X = h->X.pow_22523();
-   h->X = h->X * v3;
-   h->X = h->X * u; /* x = uv^3(uv^7)^((q-5)/8) */
+   h.X = h.X.pow_22523();
+   h.X = h.X * v3;
+   h.X = h.X * u; /* x = uv^3(uv^7)^((q-5)/8) */
 
-   vxx = h->X.sqr();
+   vxx = h.X.sqr();
    vxx = vxx * v;
    check = vxx - u; /* vx^2-u */
    if(!check.is_zero()) {
@@ -373,14 +374,14 @@ int ge_frombytes_negate_vartime(ge_p3* h, const uint8_t* s) {
       if(!check.is_zero()) {
          return -1;
       }
-      h->X = h->X * sqrtm1;
+      h.X = h.X * sqrtm1;
    }
 
-   if(h->X.is_negative() == bool(s[31] >> 7)) {
-      h->X = -h->X;
+   if(h.X.is_negative() == bool(s[31] >> 7)) {
+      h.X = -h.X;
    }
 
-   h->T = h->X * h->Y;
+   h.T = h.X * h.Y;
    return 0;
 }
 
@@ -391,7 +392,7 @@ and b = b[0]+256*b[1]+...+256^31 b[31].
 B is the Ed25519 base point (x,4/5) with x positive.
 */
 
-void ge_double_scalarmult_vartime(uint8_t out[32], const uint8_t* a, const ge_p3* A, const uint8_t* b) {
+void ge_double_scalarmult_vartime(uint8_t out[32], const uint8_t* a, const ge_p3& A, const uint8_t* b) {
    static const ge_precomp Bi[8] = {
       {
          {25967493, -14356035, 29566456, 3660896, -12694345, 4014787, 27544626, -11754271, -6079156, 2047605},
@@ -447,32 +448,32 @@ void ge_double_scalarmult_vartime(uint8_t out[32], const uint8_t* a, const ge_p3
    slide(aslide, a);
    slide(bslide, b);
 
-   ge_p3_to_cached(&Ai[0], A);
-   ge_p3_dbl(&t, A);
-   ge_p1p1_to_p3(&A2, &t);
-   ge_add(&t, &A2, &Ai[0]);
-   ge_p1p1_to_p3(&u, &t);
-   ge_p3_to_cached(&Ai[1], &u);
-   ge_add(&t, &A2, &Ai[1]);
-   ge_p1p1_to_p3(&u, &t);
-   ge_p3_to_cached(&Ai[2], &u);
-   ge_add(&t, &A2, &Ai[2]);
-   ge_p1p1_to_p3(&u, &t);
-   ge_p3_to_cached(&Ai[3], &u);
-   ge_add(&t, &A2, &Ai[3]);
-   ge_p1p1_to_p3(&u, &t);
-   ge_p3_to_cached(&Ai[4], &u);
-   ge_add(&t, &A2, &Ai[4]);
-   ge_p1p1_to_p3(&u, &t);
-   ge_p3_to_cached(&Ai[5], &u);
-   ge_add(&t, &A2, &Ai[5]);
-   ge_p1p1_to_p3(&u, &t);
-   ge_p3_to_cached(&Ai[6], &u);
-   ge_add(&t, &A2, &Ai[6]);
-   ge_p1p1_to_p3(&u, &t);
-   ge_p3_to_cached(&Ai[7], &u);
+   Ai[0] = ge_p3_to_cached(A);
+   ge_p3_dbl(t, A);
+   ge_p1p1_to_p3(A2, t);
+   ge_add(t, A2, Ai[0]);
+   ge_p1p1_to_p3(u, t);
+   Ai[1] = ge_p3_to_cached(u);
+   ge_add(t, A2, Ai[1]);
+   ge_p1p1_to_p3(u, t);
+   Ai[2] = ge_p3_to_cached(u);
+   ge_add(t, A2, Ai[2]);
+   ge_p1p1_to_p3(u, t);
+   Ai[3] = ge_p3_to_cached(u);
+   ge_add(t, A2, Ai[3]);
+   ge_p1p1_to_p3(u, t);
+   Ai[4] = ge_p3_to_cached(u);
+   ge_add(t, A2, Ai[4]);
+   ge_p1p1_to_p3(u, t);
+   Ai[5] = ge_p3_to_cached(u);
+   ge_add(t, A2, Ai[5]);
+   ge_p1p1_to_p3(u, t);
+   Ai[6] = ge_p3_to_cached(u);
+   ge_add(t, A2, Ai[6]);
+   ge_p1p1_to_p3(u, t);
+   Ai[7] = ge_p3_to_cached(u);
 
-   ge_p2_0(&r);
+   ge_p2_0(r);
 
    for(i = 255; i >= 0; --i) {
       if(aslide[i] || bslide[i]) {
@@ -481,28 +482,28 @@ void ge_double_scalarmult_vartime(uint8_t out[32], const uint8_t* a, const ge_p3
    }
 
    for(; i >= 0; --i) {
-      ge_p2_dbl(&t, &r);
+      ge_p2_dbl(t, r);
 
       if(aslide[i] > 0) {
-         ge_p1p1_to_p3(&u, &t);
-         ge_add(&t, &u, &Ai[aslide[i] >> 1]);
+         ge_p1p1_to_p3(u, t);
+         ge_add(t, u, Ai[aslide[i] >> 1]);
       } else if(aslide[i] < 0) {
-         ge_p1p1_to_p3(&u, &t);
-         ge_sub(&t, &u, &Ai[(-aslide[i]) >> 1]);
+         ge_p1p1_to_p3(u, t);
+         ge_sub(t, u, Ai[(-aslide[i]) >> 1]);
       }
 
       if(bslide[i] > 0) {
-         ge_p1p1_to_p3(&u, &t);
-         ge_madd(&t, &u, &Bi[bslide[i] >> 1]);
+         ge_p1p1_to_p3(u, t);
+         ge_madd(t, u, Bi[bslide[i] >> 1]);
       } else if(bslide[i] < 0) {
-         ge_p1p1_to_p3(&u, &t);
-         ge_msub(&t, &u, &Bi[(-bslide[i]) >> 1]);
+         ge_p1p1_to_p3(u, t);
+         ge_msub(t, u, Bi[(-bslide[i]) >> 1]);
       }
 
-      ge_p1p1_to_p2(&r, &t);
+      ge_p1p1_to_p2(r, t);
    }
 
-   ge_tobytes(out, &r);
+   ge_tobytes(out, r);
 }
 
 /* base[i][j] = (j+1)*256^i*B */
@@ -1876,13 +1877,13 @@ inline uint8_t negative(int8_t b) {
    return static_cast<uint8_t>(x);
 }
 
-inline void ge_precomp_0(ge_precomp* h) {
-   h->yplusx = FE_25519::one();
-   h->yminusx = FE_25519::one();
-   h->xy2d = FE_25519::zero();
+inline void ge_precomp_0(ge_precomp& h) {
+   h.yplusx = FE_25519::one();
+   h.yminusx = FE_25519::one();
+   h.xy2d = FE_25519::zero();
 }
 
-inline void select(ge_precomp* t, const ge_precomp* base, int8_t b) {
+inline void select(ge_precomp& t, const ge_precomp base[8], int8_t b) {
    const uint8_t bnegative = negative(b);
    const uint8_t babs = b - ((-static_cast<int>(bnegative) & b) * 2);
    const int32_t neg_mask = equal32(bnegative, 1);
@@ -1899,41 +1900,41 @@ inline void select(ge_precomp* t, const ge_precomp* base, int8_t b) {
    ge_precomp_0(t);
 
    for(size_t i = 0; i != 10; ++i) {
-      t->yplusx[i] = t->yplusx[i] ^ ((t->yplusx[i] ^ base[0].yplusx[i]) & mask1) ^
-                     ((t->yplusx[i] ^ base[1].yplusx[i]) & mask2) ^ ((t->yplusx[i] ^ base[2].yplusx[i]) & mask3) ^
-                     ((t->yplusx[i] ^ base[3].yplusx[i]) & mask4) ^ ((t->yplusx[i] ^ base[4].yplusx[i]) & mask5) ^
-                     ((t->yplusx[i] ^ base[5].yplusx[i]) & mask6) ^ ((t->yplusx[i] ^ base[6].yplusx[i]) & mask7) ^
-                     ((t->yplusx[i] ^ base[7].yplusx[i]) & mask8);
+      t.yplusx[i] = t.yplusx[i] ^ ((t.yplusx[i] ^ base[0].yplusx[i]) & mask1) ^
+                     ((t.yplusx[i] ^ base[1].yplusx[i]) & mask2) ^ ((t.yplusx[i] ^ base[2].yplusx[i]) & mask3) ^
+                     ((t.yplusx[i] ^ base[3].yplusx[i]) & mask4) ^ ((t.yplusx[i] ^ base[4].yplusx[i]) & mask5) ^
+                     ((t.yplusx[i] ^ base[5].yplusx[i]) & mask6) ^ ((t.yplusx[i] ^ base[6].yplusx[i]) & mask7) ^
+                     ((t.yplusx[i] ^ base[7].yplusx[i]) & mask8);
 
-      t->yminusx[i] = t->yminusx[i] ^ ((t->yminusx[i] ^ base[0].yminusx[i]) & mask1) ^
-                      ((t->yminusx[i] ^ base[1].yminusx[i]) & mask2) ^ ((t->yminusx[i] ^ base[2].yminusx[i]) & mask3) ^
-                      ((t->yminusx[i] ^ base[3].yminusx[i]) & mask4) ^ ((t->yminusx[i] ^ base[4].yminusx[i]) & mask5) ^
-                      ((t->yminusx[i] ^ base[5].yminusx[i]) & mask6) ^ ((t->yminusx[i] ^ base[6].yminusx[i]) & mask7) ^
-                      ((t->yminusx[i] ^ base[7].yminusx[i]) & mask8);
+      t.yminusx[i] = t.yminusx[i] ^ ((t.yminusx[i] ^ base[0].yminusx[i]) & mask1) ^
+                      ((t.yminusx[i] ^ base[1].yminusx[i]) & mask2) ^ ((t.yminusx[i] ^ base[2].yminusx[i]) & mask3) ^
+                      ((t.yminusx[i] ^ base[3].yminusx[i]) & mask4) ^ ((t.yminusx[i] ^ base[4].yminusx[i]) & mask5) ^
+                      ((t.yminusx[i] ^ base[5].yminusx[i]) & mask6) ^ ((t.yminusx[i] ^ base[6].yminusx[i]) & mask7) ^
+                      ((t.yminusx[i] ^ base[7].yminusx[i]) & mask8);
 
-      t->xy2d[i] = t->xy2d[i] ^ ((t->xy2d[i] ^ base[0].xy2d[i]) & mask1) ^ ((t->xy2d[i] ^ base[1].xy2d[i]) & mask2) ^
-                   ((t->xy2d[i] ^ base[2].xy2d[i]) & mask3) ^ ((t->xy2d[i] ^ base[3].xy2d[i]) & mask4) ^
-                   ((t->xy2d[i] ^ base[4].xy2d[i]) & mask5) ^ ((t->xy2d[i] ^ base[5].xy2d[i]) & mask6) ^
-                   ((t->xy2d[i] ^ base[6].xy2d[i]) & mask7) ^ ((t->xy2d[i] ^ base[7].xy2d[i]) & mask8);
+      t.xy2d[i] = t.xy2d[i] ^ ((t.xy2d[i] ^ base[0].xy2d[i]) & mask1) ^ ((t.xy2d[i] ^ base[1].xy2d[i]) & mask2) ^
+                   ((t.xy2d[i] ^ base[2].xy2d[i]) & mask3) ^ ((t.xy2d[i] ^ base[3].xy2d[i]) & mask4) ^
+                   ((t.xy2d[i] ^ base[4].xy2d[i]) & mask5) ^ ((t.xy2d[i] ^ base[5].xy2d[i]) & mask6) ^
+                   ((t.xy2d[i] ^ base[6].xy2d[i]) & mask7) ^ ((t.xy2d[i] ^ base[7].xy2d[i]) & mask8);
    }
 
-   FE_25519 minus_xy2d = -t->xy2d;
+   FE_25519 minus_xy2d = -t.xy2d;
 
    // If negative have to swap yminusx and yplusx
    for(size_t i = 0; i != 10; ++i) {
-      int32_t t_yplusx = t->yplusx[i] ^ ((t->yplusx[i] ^ t->yminusx[i]) & neg_mask);
-      int32_t t_yminusx = t->yminusx[i] ^ ((t->yminusx[i] ^ t->yplusx[i]) & neg_mask);
+      int32_t t_yplusx = t.yplusx[i] ^ ((t.yplusx[i] ^ t.yminusx[i]) & neg_mask);
+      int32_t t_yminusx = t.yminusx[i] ^ ((t.yminusx[i] ^ t.yplusx[i]) & neg_mask);
 
-      t->yplusx[i] = t_yplusx;
-      t->yminusx[i] = t_yminusx;
-      t->xy2d[i] = t->xy2d[i] ^ ((t->xy2d[i] ^ minus_xy2d[i]) & neg_mask);
+      t.yplusx[i] = t_yplusx;
+      t.yminusx[i] = t_yminusx;
+      t.xy2d[i] = t.xy2d[i] ^ ((t.xy2d[i] ^ minus_xy2d[i]) & neg_mask);
    }
 }
 
-void ge_p3_tobytes(uint8_t* s, const ge_p3* h) {
-   auto recip = h->Z.invert();
-   auto x = h->X * recip;
-   auto y = h->Y * recip;
+void ge_p3_tobytes(uint8_t* s, const ge_p3& h) {
+   auto recip = h.Z.invert();
+   auto x = h.X * recip;
+   auto y = h.Y * recip;
    y.serialize(s);
    s[31] ^= x.is_negative() ? 0x80 : 0x00;
 }
@@ -1975,29 +1976,29 @@ void ge_scalarmult_base(uint8_t out[32], const uint8_t a[32]) {
    e[63] += carry;
    /* each e[i] is between -8 and 8 */
 
-   ge_p3_0(&h);
+   ge_p3_0(h);
    for(i = 1; i < 64; i += 2) {
-      select(&t, B_precomp[i / 2], e[i]);
-      ge_madd(&r, &h, &t);
-      ge_p1p1_to_p3(&h, &r);
+      select(t, B_precomp[i / 2], e[i]);
+      ge_madd(r, h, t);
+      ge_p1p1_to_p3(h, r);
    }
 
-   ge_p3_dbl(&r, &h);
-   ge_p1p1_to_p2(&s, &r);
-   ge_p2_dbl(&r, &s);
-   ge_p1p1_to_p2(&s, &r);
-   ge_p2_dbl(&r, &s);
-   ge_p1p1_to_p2(&s, &r);
-   ge_p2_dbl(&r, &s);
-   ge_p1p1_to_p3(&h, &r);
+   ge_p3_dbl(r, h);
+   ge_p1p1_to_p2(s, r);
+   ge_p2_dbl(r, s);
+   ge_p1p1_to_p2(s, r);
+   ge_p2_dbl(r, s);
+   ge_p1p1_to_p2(s, r);
+   ge_p2_dbl(r, s);
+   ge_p1p1_to_p3(h, r);
 
    for(i = 0; i < 64; i += 2) {
-      select(&t, B_precomp[i / 2], e[i]);
-      ge_madd(&r, &h, &t);
-      ge_p1p1_to_p3(&h, &r);
+      select(t, B_precomp[i / 2], e[i]);
+      ge_madd(r, h, t);
+      ge_p1p1_to_p3(h, r);
    }
 
-   ge_p3_tobytes(out, &h);
+   ge_p3_tobytes(out, h);
 }
 
 }  // namespace Botan

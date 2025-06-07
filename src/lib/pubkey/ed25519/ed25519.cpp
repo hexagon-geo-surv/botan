@@ -83,7 +83,7 @@ bool ed25519_verify(const uint8_t* m,
    if(sig[63] & 224) {
       return false;
    }
-   if(ge_frombytes_negate_vartime(&A, pk) != 0) {
+   if(ge_frombytes_negate_vartime(A, pk) != 0) {
       return false;
    }
 
@@ -120,7 +120,7 @@ bool ed25519_verify(const uint8_t* m,
    sha.final(h);
    sc_reduce(h);
 
-   ge_double_scalarmult_vartime(rcheck, h, &A, sig + 32);
+   ge_double_scalarmult_vartime(rcheck, h, A, sig + 32);
 
    return CT::is_equal(rcheck, sig, 32).as_bool();
 }
