@@ -101,7 +101,7 @@ class FE_25519 {
       static FE_25519 add(const FE_25519& a, const FE_25519& b) {
          FE_25519 z;
          for(size_t i = 0; i != 10; ++i) {
-            z[i] = a[i] + b[i];
+            z.m_fe[i] = a.m_fe[i] + b.m_fe[i];
          }
          return z;
       }
@@ -109,7 +109,7 @@ class FE_25519 {
       static FE_25519 sub(const FE_25519& a, const FE_25519& b) {
          FE_25519 z;
          for(size_t i = 0; i != 10; ++i) {
-            z[i] = a[i] - b[i];
+            z.m_fe[i] = a.m_fe[i] - b.m_fe[i];
          }
          return z;
       }
@@ -117,7 +117,7 @@ class FE_25519 {
       static FE_25519 negate(const FE_25519& a) {
          FE_25519 z;
          for(size_t i = 0; i != 10; ++i) {
-            z[i] = -a[i];
+            z.m_fe[i] = -a.m_fe[i];
          }
          return z;
       }

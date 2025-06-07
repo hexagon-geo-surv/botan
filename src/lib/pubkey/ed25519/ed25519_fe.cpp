@@ -112,27 +112,27 @@ With tighter constraints on inputs can squeeze carries into int32.
 
 //static
 FE_25519 FE_25519::mul(const FE_25519& f, const FE_25519& g) {
-   const int32_t f0 = f[0];
-   const int32_t f1 = f[1];
-   const int32_t f2 = f[2];
-   const int32_t f3 = f[3];
-   const int32_t f4 = f[4];
-   const int32_t f5 = f[5];
-   const int32_t f6 = f[6];
-   const int32_t f7 = f[7];
-   const int32_t f8 = f[8];
-   const int32_t f9 = f[9];
+   const int32_t f0 = f.m_fe[0];
+   const int32_t f1 = f.m_fe[1];
+   const int32_t f2 = f.m_fe[2];
+   const int32_t f3 = f.m_fe[3];
+   const int32_t f4 = f.m_fe[4];
+   const int32_t f5 = f.m_fe[5];
+   const int32_t f6 = f.m_fe[6];
+   const int32_t f7 = f.m_fe[7];
+   const int32_t f8 = f.m_fe[8];
+   const int32_t f9 = f.m_fe[9];
 
-   const int32_t g0 = g[0];
-   const int32_t g1 = g[1];
-   const int32_t g2 = g[2];
-   const int32_t g3 = g[3];
-   const int32_t g4 = g[4];
-   const int32_t g5 = g[5];
-   const int32_t g6 = g[6];
-   const int32_t g7 = g[7];
-   const int32_t g8 = g[8];
-   const int32_t g9 = g[9];
+   const int32_t g0 = g.m_fe[0];
+   const int32_t g1 = g.m_fe[1];
+   const int32_t g2 = g.m_fe[2];
+   const int32_t g3 = g.m_fe[3];
+   const int32_t g4 = g.m_fe[4];
+   const int32_t g5 = g.m_fe[5];
+   const int32_t g6 = g.m_fe[6];
+   const int32_t g7 = g.m_fe[7];
+   const int32_t g8 = g.m_fe[8];
+   const int32_t g9 = g.m_fe[9];
 
    const int32_t g1_19 = 19 * g1; /* 1.959375*2^29 */
    const int32_t g2_19 = 19 * g2; /* 1.959375*2^30; still ok */
