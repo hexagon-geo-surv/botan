@@ -231,11 +231,13 @@ ge_p1p1 ge_p2_dbl(const ge_p2& p) {
    return r;
 }
 
-void ge_p3_0(ge_p3& h) {
+ge_p3 ge_p3_zero() {
+   ge_p3 h;
    h.X = FE_25519::zero();
    h.Y = FE_25519::one();
    h.Z = FE_25519::one();
    h.T = FE_25519::zero();
+   return h;
 }
 
 /*
@@ -346,10 +348,12 @@ void ge_tobytes(uint8_t* s, const ge_p2& h) {
    s[31] ^= x.is_negative() ? 0x80 : 0x00;
 }
 
-void ge_p2_0(ge_p2& h) {
+ge_p2 ge_p2_zero() {
+   ge_p2 h;
    h.X = FE_25519::zero();
    h.Y = FE_25519::one();
    h.Z = FE_25519::one();
+   return h;
 }
 
 }  // namespace
@@ -455,43 +459,21 @@ void ge_double_scalarmult_vartime(uint8_t out[32], const uint8_t* a, const ge_p3
 
    int8_t aslide[256];
    int8_t bslide[256];
-   ge_cached Ai[8]; /* A,3A,5A,7A,9A,11A,13A,15A */
-   ge_p1p1 t;
-   ge_p3 u;
-   ge_p3 A2;
-   ge_p2 r;
-   int i;
 
    slide(aslide, a);
    slide(bslide, b);
 
+   ge_cached Ai[8]; /* A,3A,5A,7A,9A,11A,13A,15A */
    Ai[0] = ge_p3_to_cached(A);
-   t = ge_p3_dbl(A);
-   A2 = ge_p1p1_to_p3(t);
-   t = ge_add(A2, Ai[0]);
-   u = ge_p1p1_to_p3(t);
-   Ai[1] = ge_p3_to_cached(u);
-   t = ge_add(A2, Ai[1]);
-   u = ge_p1p1_to_p3(t);
-   Ai[2] = ge_p3_to_cached(u);
-   t = ge_add(A2, Ai[2]);
-   u = ge_p1p1_to_p3(t);
-   Ai[3] = ge_p3_to_cached(u);
-   t = ge_add(A2, Ai[3]);
-   u = ge_p1p1_to_p3(t);
-   Ai[4] = ge_p3_to_cached(u);
-   t = ge_add(A2, Ai[4]);
-   u = ge_p1p1_to_p3(t);
-   Ai[5] = ge_p3_to_cached(u);
-   t = ge_add(A2, Ai[5]);
-   u = ge_p1p1_to_p3(t);
-   Ai[6] = ge_p3_to_cached(u);
-   t = ge_add(A2, Ai[6]);
-   u = ge_p1p1_to_p3(t);
-   Ai[7] = ge_p3_to_cached(u);
+   const auto A2 = ge_p1p1_to_p3(ge_p3_dbl(A));
 
-   ge_p2_0(r);
+   for(size_t i = 1; i != 8; ++i) {
+      Ai[i] = ge_p3_to_cached(ge_p1p1_to_p3(ge_add(A2, Ai[i - 1])));
+   }
 
+   auto r = ge_p2_zero();
+
+   int i;
    for(i = 255; i >= 0; --i) {
       if(aslide[i] || bslide[i]) {
          break;
@@ -499,8 +481,8 @@ void ge_double_scalarmult_vartime(uint8_t out[32], const uint8_t* a, const ge_p3
    }
 
    for(; i >= 0; --i) {
-      t = ge_p2_dbl(r);
-      u = ge_p1p1_to_p3(t);
+      auto t = ge_p2_dbl(r);
+      auto u = ge_p1p1_to_p3(t);
 
       if(aslide[i] > 0) {
          t = ge_add(u, Ai[aslide[i] >> 1]);
@@ -522,8 +504,10 @@ void ge_double_scalarmult_vartime(uint8_t out[32], const uint8_t* a, const ge_p3
    ge_tobytes(out, r);
 }
 
+namespace {
+
 /* base[i][j] = (j+1)*256^i*B */
-static constexpr ge_precomp B_precomp[32][8] = {
+constexpr ge_precomp B_precomp[32][8] = {
    {
       {
          {25967493, -14356035, 29566456, 3660896, -12694345, 4014787, 27544626, -11754271, -6079156, 2047605},
@@ -1870,8 +1854,6 @@ static constexpr ge_precomp B_precomp[32][8] = {
    },
 };
 
-namespace {
-
 inline uint8_t equal(int8_t b, int8_t c) {
    uint8_t ub = b;
    uint8_t uc = c;
@@ -1947,12 +1929,12 @@ inline void select(ge_precomp& t, const ge_precomp base[8], int8_t b) {
    }
 }
 
-void ge_p3_tobytes(uint8_t* s, const ge_p3& h) {
+void ge_p3_tobytes(uint8_t out[32], const ge_p3& h) {
    auto recip = h.Z.invert();
    auto x = h.X * recip;
    auto y = h.Y * recip;
-   y.serialize(s);
-   s[31] ^= x.is_negative() ? 0x80 : 0x00;
+   y.serialize(out);
+   out[31] ^= x.is_negative() ? 0x80 : 0x00;
 }
 
 }  // namespace
@@ -1965,25 +1947,17 @@ B is the Ed25519 base point (x,4/5) with x positive.
 Preconditions:
   a[31] <= 127
 */
-
 void ge_scalarmult_base(uint8_t out[32], const uint8_t a[32]) {
-   int8_t e[64];
-   int8_t carry;
-   ge_p1p1 r;
-   ge_p2 s;
-   ge_p3 h;
-   ge_precomp t;
-   int i;
+   std::array<int8_t, 64> e;
 
-   for(i = 0; i < 32; ++i) {
-      e[2 * i + 0] = (a[i] >> 0) & 15;
-      e[2 * i + 1] = (a[i] >> 4) & 15;
+   // each e[i] is between 0 and 15 except e[63] which is between 0 and 7
+   for(size_t i = 0; i != 32; ++i) {
+      e[2 * i + 0] = (a[i] >> 0) & 0x0F;
+      e[2 * i + 1] = (a[i] >> 4) & 0x0F;
    }
-   /* each e[i] is between 0 and 15 */
-   /* e[63] is between 0 and 7 */
 
-   carry = 0;
-   for(i = 0; i < 63; ++i) {
+   int8_t carry = 0;
+   for(size_t i = 0; i < 63; ++i) {
       e[i] += carry;
       carry = e[i] + 8;
       carry >>= 4;
@@ -1992,26 +1966,23 @@ void ge_scalarmult_base(uint8_t out[32], const uint8_t a[32]) {
    e[63] += carry;
    /* each e[i] is between -8 and 8 */
 
-   ge_p3_0(h);
-   for(i = 1; i < 64; i += 2) {
+   auto h = ge_p3_zero();
+   for(size_t i = 1; i < 64; i += 2) {
+      ge_precomp t;
       select(t, B_precomp[i / 2], e[i]);
-      r = ge_madd(h, t);
-      h = ge_p1p1_to_p3(r);
+      h = ge_p1p1_to_p3(ge_madd(h, t));
    }
 
-   r = ge_p3_dbl(h);
-   s = ge_p1p1_to_p2(r);
-   r = ge_p2_dbl(s);
-   s = ge_p1p1_to_p2(r);
-   r = ge_p2_dbl(s);
-   s = ge_p1p1_to_p2(r);
-   r = ge_p2_dbl(s);
-   h = ge_p1p1_to_p3(r);
+   ge_p2 s;
+   s = ge_p1p1_to_p2(ge_p3_dbl(h));
+   s = ge_p1p1_to_p2(ge_p2_dbl(s));
+   s = ge_p1p1_to_p2(ge_p2_dbl(s));
+   h = ge_p1p1_to_p3(ge_p2_dbl(s));
 
-   for(i = 0; i < 64; i += 2) {
+   for(size_t i = 0; i != 64; i += 2) {
+      ge_precomp t;
       select(t, B_precomp[i / 2], e[i]);
-      r = ge_madd(h, t);
-      h = ge_p1p1_to_p3(r);
+      h = ge_p1p1_to_p3(ge_madd(h, t));
    }
 
    ge_p3_tobytes(out, h);
