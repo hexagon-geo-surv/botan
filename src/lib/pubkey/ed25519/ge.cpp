@@ -49,10 +49,11 @@ struct ge_cached {
 };
 
 /*
-r = p + q
+Compute p + q
 */
+ge_p1p1 ge_add(const ge_p3& p, const ge_cached& q) {
+   ge_p1p1 r;
 
-void ge_add(ge_p1p1& r, const ge_p3& p, const ge_cached& q) {
    /* qhasm: YpX1 = Y1+X1 */
    r.X = p.Y + p.X;
 
@@ -85,6 +86,8 @@ void ge_add(ge_p1p1& r, const ge_p3& p, const ge_cached& q) {
 
    /* qhasm: T3 = D-C */
    r.T = t0 - r.T;
+
+   return r;
 }
 
 /*
@@ -262,8 +265,8 @@ ge_cached ge_p3_to_cached(const ge_p3& p) {
 r = p - q
 */
 
-void ge_sub(ge_p1p1& r, const ge_p3& p, const ge_cached& q) {
-   FE_25519 t0;
+ge_p1p1 ge_sub(const ge_p3& p, const ge_cached& q) {
+   ge_p1p1 r;
    /* qhasm: YpX1 = Y1+X1 */
    r.X = p.Y + p.X;
 
@@ -283,7 +286,7 @@ void ge_sub(ge_p1p1& r, const ge_p3& p, const ge_cached& q) {
    r.X = p.Z * q.Z;
 
    /* qhasm: D = 2*ZZ */
-   t0 = r.X + r.X;
+   auto t0 = r.X + r.X;
 
    /* qhasm: X3 = A-B */
    r.X = r.Z - r.Y;
@@ -296,6 +299,8 @@ void ge_sub(ge_p1p1& r, const ge_p3& p, const ge_cached& q) {
 
    /* qhasm: T3 = D+C */
    r.T = t0 + r.T;
+
+   return r;
 }
 
 void slide(int8_t* r, const uint8_t* a) {
@@ -458,25 +463,25 @@ void ge_double_scalarmult_vartime(uint8_t out[32], const uint8_t* a, const ge_p3
    Ai[0] = ge_p3_to_cached(A);
    t = ge_p3_dbl(A);
    A2 = ge_p1p1_to_p3(t);
-   ge_add(t, A2, Ai[0]);
+   t = ge_add(A2, Ai[0]);
    u = ge_p1p1_to_p3(t);
    Ai[1] = ge_p3_to_cached(u);
-   ge_add(t, A2, Ai[1]);
+   t = ge_add(A2, Ai[1]);
    u = ge_p1p1_to_p3(t);
    Ai[2] = ge_p3_to_cached(u);
-   ge_add(t, A2, Ai[2]);
+   t = ge_add(A2, Ai[2]);
    u = ge_p1p1_to_p3(t);
    Ai[3] = ge_p3_to_cached(u);
-   ge_add(t, A2, Ai[3]);
+   t = ge_add(A2, Ai[3]);
    u = ge_p1p1_to_p3(t);
    Ai[4] = ge_p3_to_cached(u);
-   ge_add(t, A2, Ai[4]);
+   t = ge_add(A2, Ai[4]);
    u = ge_p1p1_to_p3(t);
    Ai[5] = ge_p3_to_cached(u);
-   ge_add(t, A2, Ai[5]);
+   t = ge_add(A2, Ai[5]);
    u = ge_p1p1_to_p3(t);
    Ai[6] = ge_p3_to_cached(u);
-   ge_add(t, A2, Ai[6]);
+   t = ge_add(A2, Ai[6]);
    u = ge_p1p1_to_p3(t);
    Ai[7] = ge_p3_to_cached(u);
 
@@ -490,13 +495,12 @@ void ge_double_scalarmult_vartime(uint8_t out[32], const uint8_t* a, const ge_p3
 
    for(; i >= 0; --i) {
       t = ge_p2_dbl(r);
+      u = ge_p1p1_to_p3(t);
 
       if(aslide[i] > 0) {
-         u = ge_p1p1_to_p3(t);
-         ge_add(t, u, Ai[aslide[i] >> 1]);
+         t = ge_add(u, Ai[aslide[i] >> 1]);
       } else if(aslide[i] < 0) {
-         u = ge_p1p1_to_p3(t);
-         ge_sub(t, u, Ai[(-aslide[i]) >> 1]);
+         t = ge_sub(u, Ai[(-aslide[i]) >> 1]);
       }
 
       if(bslide[i] > 0) {
