@@ -23,27 +23,27 @@ FE_25519 FE_25519::invert(const FE_25519& z) {
 
    fe_sq(t0, z);
    fe_sq_iter(t1, t0, 2);
-   fe_mul(t1, z, t1);
-   fe_mul(t0, t0, t1);
+   t1 = z * t1;
+   t0 = t0 * t1;
    fe_sq(t2, t0);
-   fe_mul(t1, t1, t2);
+   t1 = t1 * t2;
    fe_sq_iter(t2, t1, 5);
-   fe_mul(t1, t2, t1);
+   t1 = t2 * t1;
    fe_sq_iter(t2, t1, 10);
-   fe_mul(t2, t2, t1);
+   t2 = t2 * t1;
    fe_sq_iter(t3, t2, 20);
-   fe_mul(t2, t3, t2);
+   t2 = t3 * t2;
    fe_sq_iter(t2, t2, 10);
-   fe_mul(t1, t2, t1);
+   t1 = t2 * t1;
    fe_sq_iter(t2, t1, 50);
-   fe_mul(t2, t2, t1);
+   t2 = t2 * t1;
    fe_sq_iter(t3, t2, 100);
-   fe_mul(t2, t3, t2);
+   t2 = t3 * t2;
    fe_sq_iter(t2, t2, 50);
-   fe_mul(t1, t2, t1);
+   t1 = t2 * t1;
    fe_sq_iter(t1, t1, 5);
 
-   fe_mul(t0, t1, t0);
+   t0 = t1 * t0;
    return t0;
 }
 
@@ -54,27 +54,27 @@ FE_25519 FE_25519::pow_22523(const FE_25519& z) {
 
    fe_sq(t0, z);
    fe_sq_iter(t1, t0, 2);
-   fe_mul(t1, z, t1);
-   fe_mul(t0, t0, t1);
+   t1 = z * t1;
+   t0 = t0 * t1;
    fe_sq(t0, t0);
-   fe_mul(t0, t1, t0);
+   t0 = t1 * t0;
    fe_sq_iter(t1, t0, 5);
-   fe_mul(t0, t1, t0);
+   t0 = t1 * t0;
    fe_sq_iter(t1, t0, 10);
-   fe_mul(t1, t1, t0);
+   t1 = t1 * t0;
    fe_sq_iter(t2, t1, 20);
-   fe_mul(t1, t2, t1);
+   t1 = t2 * t1;
    fe_sq_iter(t1, t1, 10);
-   fe_mul(t0, t1, t0);
+   t0 = t1 * t0;
    fe_sq_iter(t1, t0, 50);
-   fe_mul(t1, t1, t0);
+   t1 = t1 * t0;
    fe_sq_iter(t2, t1, 100);
-   fe_mul(t1, t2, t1);
+   t1 = t2 * t1;
    fe_sq_iter(t1, t1, 50);
-   fe_mul(t0, t1, t0);
+   t0 = t1 * t0;
    fe_sq_iter(t0, t0, 2);
 
-   fe_mul(t0, t0, z);
+   t0 = t0 * z;
    return t0;
 }
 

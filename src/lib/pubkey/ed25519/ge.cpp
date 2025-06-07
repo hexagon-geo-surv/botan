@@ -61,16 +61,16 @@ void ge_add(ge_p1p1* r, const ge_p3* p, const ge_cached* q) {
    r->Y = p->Y - p->X;
 
    /* qhasm: A = YpX1*YpX2 */
-   fe_mul(r->Z, r->X, q->YplusX);
+   r->Z = r->X * q->YplusX;
 
    /* qhasm: B = YmX1*YmX2 */
-   fe_mul(r->Y, r->Y, q->YminusX);
+   r->Y = r->Y * q->YminusX;
 
    /* qhasm: C = T2d2*T1 */
-   fe_mul(r->T, q->T2d, p->T);
+   r->T = q->T2d * p->T;
 
    /* qhasm: ZZ = Z1*Z2 */
-   fe_mul(r->X, p->Z, q->Z);
+   r->X = p->Z * q->Z;
 
    /* qhasm: D = 2*ZZ */
    t0 = r->X + r->X;
@@ -100,13 +100,13 @@ void ge_madd(ge_p1p1* r, const ge_p3* p, const ge_precomp* q) {
    r->Y = p->Y - p->X;
 
    /* qhasm: A = YpX1*ypx2 */
-   fe_mul(r->Z, r->X, q->yplusx);
+   r->Z = r->X * q->yplusx;
 
    /* qhasm: B = YmX1*ymx2 */
-   fe_mul(r->Y, r->Y, q->yminusx);
+   r->Y = r->Y * q->yminusx;
 
    /* qhasm: C = xy2d2*T1 */
-   fe_mul(r->T, q->xy2d, p->T);
+   r->T = q->xy2d * p->T;
 
    /* qhasm: D = 2*Z1 */
    t0 = p->Z + p->Z;
@@ -138,13 +138,13 @@ void ge_msub(ge_p1p1* r, const ge_p3* p, const ge_precomp* q) {
    r->Y = p->Y - p->X;
 
    /* qhasm: A = YpX1*ymx2 */
-   fe_mul(r->Z, r->X, q->yminusx);
+   r->Z = r->X * q->yminusx;
 
    /* qhasm: B = YmX1*ypx2 */
-   fe_mul(r->Y, r->Y, q->yplusx);
+   r->Y = r->Y * q->yplusx;
 
    /* qhasm: C = xy2d2*T1 */
-   fe_mul(r->T, q->xy2d, p->T);
+   r->T = q->xy2d * p->T;
 
    /* qhasm: D = 2*Z1 */
    t0 = p->Z + p->Z;
@@ -167,9 +167,9 @@ r = p
 */
 
 void ge_p1p1_to_p2(ge_p2* r, const ge_p1p1* p) {
-   fe_mul(r->X, p->X, p->T);
-   fe_mul(r->Y, p->Y, p->Z);
-   fe_mul(r->Z, p->Z, p->T);
+   r->X = p->X * p->T;
+   r->Y = p->Y * p->Z;
+   r->Z = p->Z * p->T;
 }
 
 /*
@@ -177,10 +177,10 @@ r = p
 */
 
 void ge_p1p1_to_p3(ge_p3* r, const ge_p1p1* p) {
-   fe_mul(r->X, p->X, p->T);
-   fe_mul(r->Y, p->Y, p->Z);
-   fe_mul(r->Z, p->Z, p->T);
-   fe_mul(r->T, p->X, p->Y);
+   r->X = p->X * p->T;
+   r->Y = p->Y * p->Z;
+   r->Z = p->Z * p->T;
+   r->T = p->X * p->Y;
 }
 
 /*
@@ -247,7 +247,7 @@ void ge_p3_to_cached(ge_cached* r, const ge_p3* p) {
    r->YplusX = p->Y + p->X;
    r->YminusX = p->Y - p->X;
    r->Z = p->Z;
-   fe_mul(r->T2d, p->T, d2);
+   r->T2d = p->T * d2;
 }
 
 /*
@@ -263,16 +263,16 @@ void ge_sub(ge_p1p1* r, const ge_p3* p, const ge_cached* q) {
    r->Y = p->Y - p->X;
 
    /* qhasm: A = YpX1*YmX2 */
-   fe_mul(r->Z, r->X, q->YminusX);
+   r->Z = r->X * q->YminusX;
 
    /* qhasm: B = YmX1*YpX2 */
-   fe_mul(r->Y, r->Y, q->YplusX);
+   r->Y = r->Y * q->YplusX;
 
    /* qhasm: C = T2d2*T1 */
-   fe_mul(r->T, q->T2d, p->T);
+   r->T = q->T2d * p->T;
 
    /* qhasm: ZZ = Z1*Z2 */
-   fe_mul(r->X, p->Z, q->Z);
+   r->X = p->Z * q->Z;
 
    /* qhasm: D = 2*ZZ */
    t0 = r->X + r->X;
@@ -326,8 +326,8 @@ void ge_tobytes(uint8_t* s, const ge_p2* h) {
    FE_25519 y;
 
    fe_invert(recip, h->Z);
-   fe_mul(x, h->X, recip);
-   fe_mul(y, h->Y, recip);
+   x = h->X * recip;
+   y = h->Y * recip;
    y.serialize(s);
    s[31] ^= fe_isnegative(x) << 7;
 }
@@ -355,36 +355,36 @@ int ge_frombytes_negate_vartime(ge_p3* h, const uint8_t* s) {
    h->Y = FE_25519::deserialize(s);
    h->Z = FE_25519::one();
    fe_sq(u, h->Y);
-   fe_mul(v, u, d);
+   v = u * d;
    u = u - h->Z; /* u = y^2-1 */
    v = v + h->Z; /* v = dy^2+1 */
 
    fe_sq(v3, v);
-   fe_mul(v3, v3, v); /* v3 = v^3 */
+   v3 = v3 * v; /* v3 = v^3 */
    fe_sq(h->X, v3);
-   fe_mul(h->X, h->X, v);
-   fe_mul(h->X, h->X, u); /* x = uv^7 */
+   h->X = h->X * v;
+   h->X = h->X * u; /* x = uv^7 */
 
    fe_pow22523(h->X, h->X); /* x = (uv^7)^((q-5)/8) */
-   fe_mul(h->X, h->X, v3);
-   fe_mul(h->X, h->X, u); /* x = uv^3(uv^7)^((q-5)/8) */
+   h->X = h->X * v3;
+   h->X = h->X * u; /* x = uv^3(uv^7)^((q-5)/8) */
 
    fe_sq(vxx, h->X);
-   fe_mul(vxx, vxx, v);
+   vxx = vxx * v;
    check = vxx - u; /* vx^2-u */
    if(fe_isnonzero(check)) {
       check = vxx + u; /* vx^2+u */
       if(fe_isnonzero(check)) {
          return -1;
       }
-      fe_mul(h->X, h->X, sqrtm1);
+      h->X = h->X * sqrtm1;
    }
 
    if(fe_isnegative(h->X) == (s[31] >> 7)) {
-      fe_neg(h->X, h->X);
+      h->X = -h->X;
    }
 
-   fe_mul(h->T, h->X, h->Y);
+   h->T = h->X * h->Y;
    return 0;
 }
 
@@ -1921,8 +1921,7 @@ inline void select(ge_precomp* t, const ge_precomp* base, int8_t b) {
                    ((t->xy2d[i] ^ base[6].xy2d[i]) & mask7) ^ ((t->xy2d[i] ^ base[7].xy2d[i]) & mask8);
    }
 
-   FE_25519 minus_xy2d;
-   fe_neg(minus_xy2d, t->xy2d);
+   FE_25519 minus_xy2d = -t->xy2d;
 
    // If negative have to swap yminusx and yplusx
    for(size_t i = 0; i != 10; ++i) {
@@ -1941,8 +1940,8 @@ void ge_p3_tobytes(uint8_t* s, const ge_p3* h) {
    FE_25519 y;
 
    fe_invert(recip, h->Z);
-   fe_mul(x, h->X, recip);
-   fe_mul(y, h->Y, recip);
+   x = h->X * recip;
+   y = h->Y * recip;
    y.serialize(s);
    s[31] ^= fe_isnegative(x) << 7;
 }
