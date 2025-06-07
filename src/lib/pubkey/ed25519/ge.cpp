@@ -345,9 +345,9 @@ void ge_p2_0(ge_p2& h) {
 }  // namespace
 
 int ge_frombytes_negate_vartime(ge_p3& h, const uint8_t* s) {
-   static const FE_25519 d = {
+   static constexpr FE_25519 d = {
       -10913610, 13857413, -15372611, 6949391, 114729, -8787816, -6275908, -3247719, -18696448, -12055116};
-   static const FE_25519 sqrtm1 = {
+   static constexpr FE_25519 sqrtm1 = {
       -32595792, -7943725, 9377950, 3500415, 12389472, -272473, -25146209, -2005654, 326686, 11406482};
 
    FE_25519 u;
@@ -400,7 +400,7 @@ B is the Ed25519 base point (x,4/5) with x positive.
 */
 
 void ge_double_scalarmult_vartime(uint8_t out[32], const uint8_t* a, const ge_p3& A, const uint8_t* b) {
-   static const ge_precomp Bi[8] = {
+   static constexpr ge_precomp Bi[8] = {
       {
          {25967493, -14356035, 29566456, 3660896, -12694345, 4014787, 27544626, -11754271, -6079156, 2047605},
          {-12545711, 934262, -2722910, 3049990, -727428, 9406986, 12720692, 5043384, 19500929, -15469378},
@@ -514,7 +514,7 @@ void ge_double_scalarmult_vartime(uint8_t out[32], const uint8_t* a, const ge_p3
 }
 
 /* base[i][j] = (j+1)*256^i*B */
-static const ge_precomp B_precomp[32][8] = {
+static constexpr ge_precomp B_precomp[32][8] = {
    {
       {
          {25967493, -14356035, 29566456, 3660896, -12694345, 4014787, 27544626, -11754271, -6079156, 2047605},
