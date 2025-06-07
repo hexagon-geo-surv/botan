@@ -321,13 +321,9 @@ void slide(int8_t* r, const uint8_t* a) {
 }
 
 void ge_tobytes(uint8_t* s, const ge_p2* h) {
-   FE_25519 recip;
-   FE_25519 x;
-   FE_25519 y;
-
-   fe_invert(recip, h->Z);
-   x = h->X * recip;
-   y = h->Y * recip;
+   auto recip = h->Z.invert();
+   auto x = h->X * recip;
+   auto y = h->Y * recip;
    y.serialize(s);
    s[31] ^= fe_isnegative(x) << 7;
 }
@@ -365,7 +361,7 @@ int ge_frombytes_negate_vartime(ge_p3* h, const uint8_t* s) {
    h->X = h->X * v;
    h->X = h->X * u; /* x = uv^7 */
 
-   fe_pow22523(h->X, h->X); /* x = (uv^7)^((q-5)/8) */
+   h->X = h->X.pow_22523();
    h->X = h->X * v3;
    h->X = h->X * u; /* x = uv^3(uv^7)^((q-5)/8) */
 
@@ -1935,13 +1931,9 @@ inline void select(ge_precomp* t, const ge_precomp* base, int8_t b) {
 }
 
 void ge_p3_tobytes(uint8_t* s, const ge_p3* h) {
-   FE_25519 recip;
-   FE_25519 x;
-   FE_25519 y;
-
-   fe_invert(recip, h->Z);
-   x = h->X * recip;
-   y = h->Y * recip;
+   auto recip = h->Z.invert();
+   auto x = h->X * recip;
+   auto y = h->Y * recip;
    y.serialize(s);
    s[31] ^= fe_isnegative(x) << 7;
 }

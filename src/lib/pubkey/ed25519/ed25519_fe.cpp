@@ -47,14 +47,14 @@ FE_25519 FE_25519::invert() const {
    return t0;
 }
 
-FE_25519 FE_25519::pow_22523(const FE_25519& z) {
+FE_25519 FE_25519::pow_22523() const {
    FE_25519 t0;
    FE_25519 t1;
    FE_25519 t2;
 
-   t0 = z.sqr();
+   t0 = this->sqr();
    fe_sq_iter(t1, t0, 2);
-   t1 = z * t1;
+   t1 = (*this) * t1;
    t0 = t0 * t1;
    t0 = t0.sqr();
    t0 = t1 * t0;
@@ -74,7 +74,7 @@ FE_25519 FE_25519::pow_22523(const FE_25519& z) {
    t0 = t1 * t0;
    fe_sq_iter(t0, t0, 2);
 
-   t0 = t0 * z;
+   t0 = t0 * (*this);
    return t0;
 }
 
