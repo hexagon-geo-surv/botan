@@ -127,7 +127,9 @@ class FE_25519 {
 
       static FE_25519 sqr(const FE_25519& a) { return sqr_iter(a, 1); }
 
+      // Return 2*a^2
       static FE_25519 sqr2(const FE_25519& a);
+
       static FE_25519 pow_22523(const FE_25519& a);
       static FE_25519 invert(const FE_25519& a);
 
@@ -173,7 +175,7 @@ inline void fe_sub(FE_25519& x, const FE_25519& a, const FE_25519& b) {
 }
 
 inline void fe_neg(FE_25519& x, const FE_25519& z) {
-   x = FE_25519::negate(z);
+   x = -z;
 }
 
 inline void fe_mul(FE_25519& x, const FE_25519& a, const FE_25519& b) {
