@@ -163,10 +163,6 @@ inline int fe_isnonzero(const FE_25519& x) {
    return x.is_zero() ? 0 : 1;
 }
 
-inline int fe_isnegative(const FE_25519& x) {
-   return x.is_negative();
-}
-
 inline void fe_sq_iter(FE_25519& x, const FE_25519& z, size_t iter) {
    x = FE_25519::sqr_iter(z, iter);
 }

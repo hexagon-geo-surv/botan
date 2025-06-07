@@ -325,7 +325,7 @@ void ge_tobytes(uint8_t* s, const ge_p2* h) {
    auto x = h->X * recip;
    auto y = h->Y * recip;
    y.serialize(s);
-   s[31] ^= fe_isnegative(x) << 7;
+   s[31] ^= x.is_negative() ? 0x80 : 0x00;
 }
 
 void ge_p2_0(ge_p2* h) {
@@ -376,7 +376,7 @@ int ge_frombytes_negate_vartime(ge_p3* h, const uint8_t* s) {
       h->X = h->X * sqrtm1;
    }
 
-   if(fe_isnegative(h->X) == (s[31] >> 7)) {
+   if(h->X.is_negative() == bool(s[31] >> 7)) {
       h->X = -h->X;
    }
 
@@ -1935,7 +1935,7 @@ void ge_p3_tobytes(uint8_t* s, const ge_p3* h) {
    auto x = h->X * recip;
    auto y = h->Y * recip;
    y.serialize(s);
-   s[31] ^= fe_isnegative(x) << 7;
+   s[31] ^= x.is_negative() ? 0x80 : 0x00;
 }
 
 }  // namespace
