@@ -368,9 +368,9 @@ int ge_frombytes_negate_vartime(ge_p3* h, const uint8_t* s) {
    vxx = h->X.sqr();
    vxx = vxx * v;
    check = vxx - u; /* vx^2-u */
-   if(fe_isnonzero(check)) {
+   if(!check.is_zero()) {
       check = vxx + u; /* vx^2+u */
-      if(fe_isnonzero(check)) {
+      if(!check.is_zero()) {
          return -1;
       }
       h->X = h->X * sqrtm1;

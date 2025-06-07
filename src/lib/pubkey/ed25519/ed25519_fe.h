@@ -123,9 +123,10 @@ class FE_25519 {
       }
 
       static FE_25519 mul(const FE_25519& a, const FE_25519& b);
-      static FE_25519 sqr_iter(const FE_25519& a, size_t iter);
 
-      FE_25519 sqr() const { return sqr_iter(*this, 1); }
+      FE_25519 sqr_iter(size_t iter) const;
+
+      FE_25519 sqr() const { return sqr_iter(1); }
 
       // Return 2*a^2
       FE_25519 sqr2() const;
@@ -157,14 +158,6 @@ inline FE_25519 operator*(const FE_25519& x, const FE_25519& y) {
 
 inline FE_25519 operator-(const FE_25519& x) {
    return FE_25519::negate(x);
-}
-
-inline int fe_isnonzero(const FE_25519& x) {
-   return x.is_zero() ? 0 : 1;
-}
-
-inline void fe_sq_iter(FE_25519& x, const FE_25519& z, size_t iter) {
-   x = FE_25519::sqr_iter(z, iter);
 }
 
 }  // namespace Botan

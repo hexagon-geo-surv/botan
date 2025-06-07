@@ -22,26 +22,26 @@ FE_25519 FE_25519::invert() const {
    FE_25519 t3;
 
    t0 = this->sqr();
-   fe_sq_iter(t1, t0, 2);
+   t1 = t0.sqr_iter(2);
    t1 = *this * t1;
    t0 = t0 * t1;
    t2 = t0.sqr();
    t1 = t1 * t2;
-   fe_sq_iter(t2, t1, 5);
+   t2 = t1.sqr_iter(5);
    t1 = t2 * t1;
-   fe_sq_iter(t2, t1, 10);
+   t2 = t1.sqr_iter(10);
    t2 = t2 * t1;
-   fe_sq_iter(t3, t2, 20);
+   t3 = t2.sqr_iter(20);
    t2 = t3 * t2;
-   fe_sq_iter(t2, t2, 10);
+   t2 = t2.sqr_iter(10);
    t1 = t2 * t1;
-   fe_sq_iter(t2, t1, 50);
+   t2 = t1.sqr_iter(50);
    t2 = t2 * t1;
-   fe_sq_iter(t3, t2, 100);
+   t3 = t2.sqr_iter(100);
    t2 = t3 * t2;
-   fe_sq_iter(t2, t2, 50);
+   t2 = t2.sqr_iter(50);
    t1 = t2 * t1;
-   fe_sq_iter(t1, t1, 5);
+   t1 = t1.sqr_iter(5);
 
    t0 = t1 * t0;
    return t0;
@@ -53,26 +53,26 @@ FE_25519 FE_25519::pow_22523() const {
    FE_25519 t2;
 
    t0 = this->sqr();
-   fe_sq_iter(t1, t0, 2);
+   t1 = t0.sqr_iter(2);
    t1 = (*this) * t1;
    t0 = t0 * t1;
    t0 = t0.sqr();
    t0 = t1 * t0;
-   fe_sq_iter(t1, t0, 5);
+   t1 = t0.sqr_iter(5);
    t0 = t1 * t0;
-   fe_sq_iter(t1, t0, 10);
+   t1 = t0.sqr_iter(10);
    t1 = t1 * t0;
-   fe_sq_iter(t2, t1, 20);
+   t2 = t1.sqr_iter(20);
    t1 = t2 * t1;
-   fe_sq_iter(t1, t1, 10);
+   t1 = t1.sqr_iter(10);
    t0 = t1 * t0;
-   fe_sq_iter(t1, t0, 50);
+   t1 = t0.sqr_iter(50);
    t1 = t1 * t0;
-   fe_sq_iter(t2, t1, 100);
+   t2 = t1.sqr_iter(100);
    t1 = t2 * t1;
-   fe_sq_iter(t1, t1, 50);
+   t1 = t1.sqr_iter(50);
    t0 = t1 * t0;
-   fe_sq_iter(t0, t0, 2);
+   t0 = t0.sqr_iter(2);
 
    t0 = t0 * (*this);
    return t0;
@@ -332,17 +332,17 @@ See fe_mul.c for discussion of implementation strategy.
 */
 
 //static
-FE_25519 FE_25519::sqr_iter(const FE_25519& f, size_t iter) {
-   int32_t f0 = f[0];
-   int32_t f1 = f[1];
-   int32_t f2 = f[2];
-   int32_t f3 = f[3];
-   int32_t f4 = f[4];
-   int32_t f5 = f[5];
-   int32_t f6 = f[6];
-   int32_t f7 = f[7];
-   int32_t f8 = f[8];
-   int32_t f9 = f[9];
+FE_25519 FE_25519::sqr_iter(size_t iter) const {
+   int32_t f0 = m_fe[0];
+   int32_t f1 = m_fe[1];
+   int32_t f2 = m_fe[2];
+   int32_t f3 = m_fe[3];
+   int32_t f4 = m_fe[4];
+   int32_t f5 = m_fe[5];
+   int32_t f6 = m_fe[6];
+   int32_t f7 = m_fe[7];
+   int32_t f8 = m_fe[8];
+   int32_t f9 = m_fe[9];
 
    for(size_t i = 0; i != iter; ++i) {
       const int32_t f0_2 = 2 * f0;
