@@ -166,10 +166,6 @@ inline int fe_isnegative(const FE_25519& x) {
    return x.is_negative();
 }
 
-inline void fe_sub(FE_25519& x, const FE_25519& a, const FE_25519& b) {
-   x = a - b;
-}
-
 inline void fe_neg(FE_25519& x, const FE_25519& z) {
    x = -z;
 }

@@ -58,7 +58,7 @@ void ge_add(ge_p1p1* r, const ge_p3* p, const ge_cached* q) {
    r->X = p->Y + p->X;
 
    /* qhasm: YmX1 = Y1-X1 */
-   fe_sub(r->Y, p->Y, p->X);
+   r->Y = p->Y - p->X;
 
    /* qhasm: A = YpX1*YpX2 */
    fe_mul(r->Z, r->X, q->YplusX);
@@ -76,7 +76,7 @@ void ge_add(ge_p1p1* r, const ge_p3* p, const ge_cached* q) {
    t0 = r->X + r->X;
 
    /* qhasm: X3 = A-B */
-   fe_sub(r->X, r->Z, r->Y);
+   r->X = r->Z - r->Y;
 
    /* qhasm: Y3 = A+B */
    r->Y = r->Z + r->Y;
@@ -85,7 +85,7 @@ void ge_add(ge_p1p1* r, const ge_p3* p, const ge_cached* q) {
    r->Z = t0 + r->T;
 
    /* qhasm: T3 = D-C */
-   fe_sub(r->T, t0, r->T);
+   r->T = t0 - r->T;
 }
 
 /*
@@ -97,7 +97,7 @@ void ge_madd(ge_p1p1* r, const ge_p3* p, const ge_precomp* q) {
    r->X = p->Y + p->X;
 
    /* qhasm: YmX1 = Y1-X1 */
-   fe_sub(r->Y, p->Y, p->X);
+   r->Y = p->Y - p->X;
 
    /* qhasm: A = YpX1*ypx2 */
    fe_mul(r->Z, r->X, q->yplusx);
@@ -112,7 +112,7 @@ void ge_madd(ge_p1p1* r, const ge_p3* p, const ge_precomp* q) {
    t0 = p->Z + p->Z;
 
    /* qhasm: X3 = A-B */
-   fe_sub(r->X, r->Z, r->Y);
+   r->X = r->Z - r->Y;
 
    /* qhasm: Y3 = A+B */
    r->Y = r->Z + r->Y;
@@ -121,7 +121,7 @@ void ge_madd(ge_p1p1* r, const ge_p3* p, const ge_precomp* q) {
    r->Z = t0 + r->T;
 
    /* qhasm: T3 = D-C */
-   fe_sub(r->T, t0, r->T);
+   r->T = t0 - r->T;
 }
 
 /*
@@ -135,7 +135,7 @@ void ge_msub(ge_p1p1* r, const ge_p3* p, const ge_precomp* q) {
    r->X = p->Y + p->X;
 
    /* qhasm: YmX1 = Y1-X1 */
-   fe_sub(r->Y, p->Y, p->X);
+   r->Y = p->Y - p->X;
 
    /* qhasm: A = YpX1*ymx2 */
    fe_mul(r->Z, r->X, q->yminusx);
@@ -150,13 +150,13 @@ void ge_msub(ge_p1p1* r, const ge_p3* p, const ge_precomp* q) {
    t0 = p->Z + p->Z;
 
    /* qhasm: X3 = A-B */
-   fe_sub(r->X, r->Z, r->Y);
+   r->X = r->Z - r->Y;
 
    /* qhasm: Y3 = A+B */
    r->Y = r->Z + r->Y;
 
    /* qhasm: Z3 = D-C */
-   fe_sub(r->Z, t0, r->T);
+   r->Z = t0 - r->T;
 
    /* qhasm: T3 = D+C */
    r->T = t0 + r->T;
@@ -208,13 +208,13 @@ void ge_p2_dbl(ge_p1p1* r, const ge_p2* p) {
    r->Y = r->Z + r->X;
 
    /* qhasm: Z3=YY-XX */
-   fe_sub(r->Z, r->Z, r->X);
+   r->Z = r->Z - r->X;
 
    /* qhasm: X3=AA-Y3 */
-   fe_sub(r->X, t0, r->Y);
+   r->X = t0 - r->Y;
 
    /* qhasm: T3=B-Z3 */
-   fe_sub(r->T, r->T, r->Z);
+   r->T = r->T - r->Z;
 }
 
 void ge_p3_0(ge_p3* h) {
@@ -245,7 +245,7 @@ void ge_p3_to_cached(ge_cached* r, const ge_p3* p) {
    static const FE_25519 d2 = {
       -21827239, -5839606, -30745221, 13898782, 229458, 15978800, -12551817, -6495438, 29715968, 9444199};
    r->YplusX = p->Y + p->X;
-   fe_sub(r->YminusX, p->Y, p->X);
+   r->YminusX = p->Y - p->X;
    r->Z = p->Z;
    fe_mul(r->T2d, p->T, d2);
 }
@@ -260,7 +260,7 @@ void ge_sub(ge_p1p1* r, const ge_p3* p, const ge_cached* q) {
    r->X = p->Y + p->X;
 
    /* qhasm: YmX1 = Y1-X1 */
-   fe_sub(r->Y, p->Y, p->X);
+   r->Y = p->Y - p->X;
 
    /* qhasm: A = YpX1*YmX2 */
    fe_mul(r->Z, r->X, q->YminusX);
@@ -278,13 +278,13 @@ void ge_sub(ge_p1p1* r, const ge_p3* p, const ge_cached* q) {
    t0 = r->X + r->X;
 
    /* qhasm: X3 = A-B */
-   fe_sub(r->X, r->Z, r->Y);
+   r->X = r->Z - r->Y;
 
    /* qhasm: Y3 = A+B */
    r->Y = r->Z + r->Y;
 
    /* qhasm: Z3 = D-C */
-   fe_sub(r->Z, t0, r->T);
+   r->Z = t0 - r->T;
 
    /* qhasm: T3 = D+C */
    r->T = t0 + r->T;
@@ -356,7 +356,7 @@ int ge_frombytes_negate_vartime(ge_p3* h, const uint8_t* s) {
    h->Z = FE_25519::one();
    fe_sq(u, h->Y);
    fe_mul(v, u, d);
-   fe_sub(u, u, h->Z); /* u = y^2-1 */
+   u = u - h->Z; /* u = y^2-1 */
    v = v + h->Z; /* v = dy^2+1 */
 
    fe_sq(v3, v);
@@ -371,7 +371,7 @@ int ge_frombytes_negate_vartime(ge_p3* h, const uint8_t* s) {
 
    fe_sq(vxx, h->X);
    fe_mul(vxx, vxx, v);
-   fe_sub(check, vxx, u); /* vx^2-u */
+   check = vxx - u; /* vx^2-u */
    if(fe_isnonzero(check)) {
       check = vxx + u; /* vx^2+u */
       if(fe_isnonzero(check)) {
