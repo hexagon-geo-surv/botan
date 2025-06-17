@@ -16,7 +16,7 @@ namespace Botan {
 
 class donna128 final {
    public:
-      constexpr donna128(uint64_t ll = 0, uint64_t hh = 0) {
+      constexpr explicit donna128(uint64_t ll = 0, uint64_t hh = 0) {
          l = ll;
          h = hh;
       }
@@ -87,7 +87,7 @@ class donna128 final {
 
       constexpr uint64_t hi() const { return h; }
 
-      constexpr operator uint64_t() const { return l; }
+      constexpr explicit operator uint64_t() const { return l; }
 
    private:
       uint64_t h = 0, l = 0;

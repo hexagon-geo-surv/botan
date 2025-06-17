@@ -26,10 +26,10 @@ uint8_t encode(std::span<uint8_t> out, uint64_t x) {
    const auto bytes_needed = int_encoding_size(x);
    BOTAN_ASSERT_NOMSG(out.size() >= bytes_needed);
 
-   std::array<uint8_t, sizeof(x)> bigendian_x;
+   std::array<uint8_t, sizeof(x)> bigendian_x{};
    store_be(x, bigendian_x.data());
 
-   auto begin = bigendian_x.begin();
+   auto* begin = bigendian_x.begin();
    std::advance(begin, sizeof(x) - bytes_needed);
    std::copy(begin, bigendian_x.end(), out.begin());
 
