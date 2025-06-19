@@ -29,7 +29,7 @@ uint8_t encode(std::span<uint8_t> out, uint64_t x) {
    std::array<uint8_t, sizeof(x)> bigendian_x{};
    store_be(x, bigendian_x.data());
 
-   auto* begin = bigendian_x.begin();
+   uint8_t* begin = bigendian_x.data();
    std::advance(begin, sizeof(x) - bytes_needed);
    std::copy(begin, bigendian_x.end(), out.begin());
 
