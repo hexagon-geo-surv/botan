@@ -100,7 +100,6 @@ constexpr inline donna128 operator*(const donna128& x, T y) {
    return donna128(lo, hi);
 }
 
-
 template <std::integral T>
 constexpr inline donna128 operator*(T y, const donna128& x) {
    return x * y;
