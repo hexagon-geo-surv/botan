@@ -259,7 +259,6 @@ Test::Result test_asn1_negative_int_encoding() {
    return result;
 }
 
-
 }  // namespace
 
 class ASN1_Tests final : public Test {
