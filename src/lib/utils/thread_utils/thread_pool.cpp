@@ -87,7 +87,7 @@ Thread_Pool::Thread_Pool(std::optional<size_t> opt_pool_size) : m_shutdown(false
 
 void Thread_Pool::shutdown() {
    {
-      std::unique_lock<std::mutex> lock(m_mutex);
+      const std::unique_lock<std::mutex> lock(m_mutex);
 
       if(m_shutdown == true) {
          return;
@@ -105,7 +105,8 @@ void Thread_Pool::shutdown() {
 }
 
 void Thread_Pool::queue_thunk(const std::function<void()>& work) {
-   std::unique_lock<std::mutex> lock(m_mutex);
+void Thread_Pool::queue_thunk(const std::function<void()>& work) {
+   const std::unique_lock<std::mutex> lock(m_mutex);
 
    if(m_shutdown) {
       throw Invalid_State("Cannot add work after thread pool has shut down");

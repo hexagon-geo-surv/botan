@@ -42,7 +42,6 @@ disabled_needs_work = [
     'bugprone-unchecked-optional-access', # clang-tidy seems buggy (many false positives)
     'bugprone-empty-catch',
     'cppcoreguidelines-avoid-const-or-ref-data-members',
-    'misc-const-correctness', # pretty noisy
     'misc-include-cleaner',
     'misc-misplaced-const',
     'modernize-pass-by-value',

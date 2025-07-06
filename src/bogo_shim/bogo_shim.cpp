@@ -387,8 +387,8 @@ class Shim_Socket final {
          //       temporary variable for the call to ::getaddrinfo() and
          //       std::unique_ptr<>::reset().
          unique_addrinfo_t::pointer res_tmp = nullptr;
-         int rc = ::getaddrinfo(hostname.c_str(), service.c_str(), &hints, &res_tmp);
-         unique_addrinfo_t res(res_tmp, &::freeaddrinfo);
+         const int rc = ::getaddrinfo(hostname.c_str(), service.c_str(), &hints, &res_tmp);
+         const unique_addrinfo_t res(res_tmp, &::freeaddrinfo);
 
          shim_log("Connecting " + hostname + ":" + service);
 
@@ -408,7 +408,7 @@ class Shim_Socket final {
                continue;
             }
 
-            int err = ::connect(m_socket, rp->ai_addr, rp->ai_addrlen);
+            const int err = ::connect(m_socket, rp->ai_addr, rp->ai_addrlen);
 
             if(err != 0) {
                ::close(m_socket);
@@ -439,7 +439,7 @@ class Shim_Socket final {
          size_t sent_so_far = 0;
          while(sent_so_far != len) {
             const size_t left = len - sent_so_far;
-            socket_op_ret_type sent =
+            const socket_op_ret_type sent =
                ::send(m_socket, Botan::cast_uint8_ptr_to_char(&buf[sent_so_far]), left, MSG_NOSIGNAL);
             if(sent < 0) {
                if(errno == EPIPE) {
@@ -457,7 +457,7 @@ class Shim_Socket final {
          if(m_socket < 0) {
             throw Shim_Exception("Socket was bad on read");
          }
-         socket_op_ret_type got = ::read(m_socket, Botan::cast_uint8_ptr_to_char(buf), len);
+         const socket_op_ret_type got = ::read(m_socket, Botan::cast_uint8_ptr_to_char(buf), len);
 
          if(got < 0) {
             if(errno == ECONNRESET) {
@@ -475,7 +475,7 @@ class Shim_Socket final {
          }
 
          while(len > 0) {
-            socket_op_ret_type got = ::read(m_socket, Botan::cast_uint8_ptr_to_char(buf), len);
+            const socket_op_ret_type got = ::read(m_socket, Botan::cast_uint8_ptr_to_char(buf), len);
 
             if(got == 0) {
                throw Shim_Exception("Socket read EOF");
@@ -599,7 +599,7 @@ class Shim_Arguments final {
 
       std::vector<std::string> get_alpn_string_vec_opt(const std::string& option) const {
          // hack used for alpn list (relies on all ALPNs being 3 chars long...)
-         char delim = 0x03;
+         const char delim = 0x03;
 
          if(option_used(option)) {
             return Botan::split_on(get_string_opt(option), delim);
@@ -659,7 +659,7 @@ void Shim_Arguments::parse_args(char* argv[]) {
             if(argv[i + 1] == nullptr) {
                throw Shim_Exception("Expected argument following " + param);
             }
-            std::string val(argv[i + 1]);
+            const std::string val(argv[i + 1]);
             shim_log(Botan::fmt("param {}={}", flag_name, val));
 
             if(m_int_vec_opts.contains(flag_name)) {
@@ -919,7 +919,7 @@ class Shim_Policy final : public Botan::TLS::Policy {
       std::vector<std::string> allowed_signature_hashes() const override {
          if(m_args.option_used("signing-prefs")) {
             std::vector<std::string> pref_hash;
-            for(size_t pref : m_args.get_int_vec_opt("signing-prefs")) {
+            for(const size_t pref : m_args.get_int_vec_opt("signing-prefs")) {
                const Botan::TLS::Signature_Scheme scheme(pref);
                if(!scheme.is_available()) {
                   shim_log("skipping inavailable but preferred signature scheme: " + std::to_string(pref));
@@ -950,7 +950,7 @@ class Shim_Policy final : public Botan::TLS::Policy {
       std::vector<Botan::TLS::Signature_Scheme> acceptable_signature_schemes() const override {
          if(m_args.option_used("verify-prefs")) {
             std::vector<Botan::TLS::Signature_Scheme> schemes;
-            for(size_t pref : m_args.get_int_vec_opt("verify-prefs")) {
+            for(const size_t pref : m_args.get_int_vec_opt("verify-prefs")) {
                schemes.emplace_back(static_cast<uint16_t>(pref));
             }
 
@@ -963,7 +963,7 @@ class Shim_Policy final : public Botan::TLS::Policy {
       std::vector<Botan::TLS::Signature_Scheme> allowed_signature_schemes() const override {
          if(m_args.option_used("signing-prefs")) {
             std::vector<Botan::TLS::Signature_Scheme> schemes;
-            for(size_t pref : m_args.get_int_vec_opt("signing-prefs")) {
+            for(const size_t pref : m_args.get_int_vec_opt("signing-prefs")) {
                schemes.emplace_back(static_cast<uint16_t>(pref));
             }
 
@@ -998,7 +998,7 @@ class Shim_Policy final : public Botan::TLS::Policy {
             // this Botan build
             const auto supported_groups = Botan::TLS::Policy::key_exchange_groups();
 
-            for(size_t pref : m_args.get_int_vec_opt("curves")) {
+            for(const size_t pref : m_args.get_int_vec_opt("curves")) {
                const auto group = static_cast<Botan::TLS::Group_Params>(pref);
                if(std::find(supported_groups.cbegin(), supported_groups.cend(), group) != supported_groups.end()) {
                   groups.push_back(group);
@@ -1068,7 +1068,7 @@ class Shim_Policy final : public Botan::TLS::Policy {
       bool allow_version(Botan::TLS::Protocol_Version version) const {
          if(m_args.option_used("min-version")) {
             const uint16_t min_version_16 = static_cast<uint16_t>(m_args.get_int_opt("min-version"));
-            Botan::TLS::Protocol_Version min_version(min_version_16 >> 8, min_version_16 & 0xFF);
+            const Botan::TLS::Protocol_Version min_version(min_version_16 >> 8, min_version_16 & 0xFF);
             if(min_version > version) {
                return false;
             }
@@ -1076,7 +1076,7 @@ class Shim_Policy final : public Botan::TLS::Policy {
 
          if(m_args.option_used("max-version")) {
             const uint16_t max_version_16 = static_cast<uint16_t>(m_args.get_int_opt("max-version"));
-            Botan::TLS::Protocol_Version max_version(max_version_16 >> 8, max_version_16 & 0xFF);
+            const Botan::TLS::Protocol_Version max_version(max_version_16 >> 8, max_version_16 & 0xFF);
             if(version > max_version) {
                return false;
             }
@@ -1124,7 +1124,7 @@ class Shim_Policy final : public Botan::TLS::Policy {
 
       std::vector<uint16_t> srtp_profiles() const override {
          if(m_args.option_used("srtp-profiles")) {
-            std::string srtp = m_args.get_string_opt("srtp-profiles");
+            const std::string srtp = m_args.get_string_opt("srtp-profiles");
 
             if(srtp == "SRTP_AES128_CM_SHA1_80:SRTP_AES128_CM_SHA1_32") {
                return {1, 2};
@@ -1209,7 +1209,7 @@ std::vector<uint16_t> Shim_Policy::ciphersuite_list(Botan::TLS::Protocol_Version
    const std::string cipher_limit = m_args.get_string_opt_or_else("cipher", "");
    if(cipher_limit ==
       "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:[TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384|TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256|TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA]:TLS_RSA_WITH_AES_128_GCM_SHA256:TLS_RSA_WITH_AES_128_CBC_SHA:[TLS_RSA_WITH_AES_256_GCM_SHA384|TLS_RSA_WITH_AES_256_CBC_SHA]") {
-      std::vector<std::string> suites = {
+      const std::vector<std::string> suites = {
          "ECDHE_RSA_WITH_AES_128_GCM_SHA256",
          "ECDHE_RSA_WITH_AES_256_GCM_SHA384",
          "ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
@@ -1672,7 +1672,7 @@ class Shim_Callbacks final : public Botan::TLS::Callbacks {
             return;
          }
 
-         if(size_t length = m_args.get_int_opt_or_else("export-keying-material", 0)) {
+         if(const size_t length = m_args.get_int_opt_or_else("export-keying-material", 0)) {
             const std::string label = m_args.get_string_opt("export-label");
             const std::string context = m_args.get_string_opt("export-context");
             const auto exported = m_channel->key_material_export(label, context, length);
@@ -1702,7 +1702,7 @@ class Shim_Callbacks final : public Botan::TLS::Callbacks {
 
             std::vector<uint8_t> buf(32769, 0x42);
 
-            for(size_t sz : record_sizes) {
+            for(const size_t sz : record_sizes) {
                m_channel->send(buf.data(), sz);
             }
 
@@ -1815,7 +1815,7 @@ int main(int /*argc*/, char* argv[]) {
             if(is_server) {
                chan = std::make_unique<Botan::TLS::Server>(callbacks, session_manager, creds, policy, rng, is_datagram);
             } else {
-               Botan::TLS::Protocol_Version offer_version = policy->latest_supported_version(is_datagram);
+               Botan::TLS::Protocol_Version const offer_version = policy->latest_supported_version(is_datagram);
                shim_log("Offering " + offer_version.to_string());
 
                std::string host_name = args->get_string_opt_or_else("host-name", hostname);
@@ -1823,7 +1823,7 @@ int main(int /*argc*/, char* argv[]) {
                   host_name = "";  // avoid sending SNI for this test
                }
 
-               Botan::TLS::Server_Information server_info(host_name, port);
+               Botan::TLS::Server_Information const server_info(host_name, port);
                const std::vector<std::string> next_protocols = args->get_alpn_string_vec_opt("advertise-alpn");
                chan = std::make_unique<Botan::TLS::Client>(
                   callbacks, session_manager, creds, policy, rng, server_info, offer_version, next_protocols);
@@ -1836,7 +1836,7 @@ int main(int /*argc*/, char* argv[]) {
             for(;;) {
                if(is_datagram) {
                   uint8_t opcode = 0;
-                  size_t got = socket.read(&opcode, 1);
+                  size_t const got = socket.read(&opcode, 1);
                   if(got == 0) {
                      shim_log("EOF on socket");
                      break;
@@ -1846,7 +1846,7 @@ int main(int /*argc*/, char* argv[]) {
                      uint8_t len_bytes[4];
                      socket.read_exactly(len_bytes, sizeof(len_bytes));
 
-                     size_t packet_len = Botan::load_be<uint32_t>(len_bytes, 0);
+                     size_t const packet_len = Botan::load_be<uint32_t>(len_bytes, 0);
 
                      if(buf.size() < packet_len) {
                         buf.resize(packet_len);
@@ -1855,7 +1855,7 @@ int main(int /*argc*/, char* argv[]) {
 
                      chan->received_data(buf.data(), packet_len);
                   } else if(opcode == 'T') {
-                     uint8_t timeout_ack = 't';
+                     uint8_t const timeout_ack = 't';
 
                      uint8_t timeout_bytes[8];
                      socket.read_exactly(timeout_bytes, sizeof(timeout_bytes));
@@ -1871,7 +1871,7 @@ int main(int /*argc*/, char* argv[]) {
                      shim_exit_with_error("Unknown opcode " + std::to_string(opcode));
                   }
                } else {
-                  size_t got = socket.read(buf.data(), buf.size());
+                  size_t const got = socket.read(buf.data(), buf.size());
                   if(got == 0) {
                      shim_log("EOF on socket");
                      break;
