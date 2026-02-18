@@ -376,14 +376,15 @@ std::vector<Test::Result> concurrent_signing_and_verification_tests() {
       ConcurrentPkTestCase("ECDSA", "secp256r1", "SHA-256"),
       ConcurrentPkTestCase("ECKCDSA", "secp256r1", "SHA-256"),
       ConcurrentPkTestCase("ECGDSA", "secp256r1", "SHA-256"),
+      ConcurrentPkTestCase("DSA", "dsa/jce/1024", "SHA-256"),
       ConcurrentPkTestCase("SM2", "sm2p256v1", "SM3"),
       ConcurrentPkTestCase("Ed25519", "", "Pure"),
       ConcurrentPkTestCase("Ed448", "", "Pure"),
       ConcurrentPkTestCase("SLH-DSA", "SLH-DSA-SHA2-128f", ""),
+      ConcurrentPkTestCase("HSS-LMS", "SHA-256,HW(5,8)", ""),
       //ConcurrentPkTestCase("ML-DSA", "ML-DSA-4x4", ""),
       //ConcurrentPkTestCase("Dilithium", "Dilithium-4x4-r3", ""),
       //ConcurrentPkTestCase("XMSS", "XMSS-SHA2_10_256", "SHA2_10_256"),
-      ConcurrentPkTestCase("HSS-LMS", "SHA-256,HW(5,8)", ""),
    };
 
    std::vector<Test::Result> results;
@@ -412,6 +413,7 @@ std::vector<Test::Result> concurrent_kem_tests() {
    const std::vector<ConcurrentPkTestCase> test_cases = {
       ConcurrentPkTestCase("RSA", "1536", "Raw"),
       ConcurrentPkTestCase("ClassicMcEliece", "348864f", "Raw"),
+      ConcurrentPkTestCase("McEliece", "1632,33", "Raw"),
       //ConcurrentPkTestCase("ML-KEM", "ML-KEM-512", "Raw"),
       //ConcurrentPkTestCase("Kyber", "Kyber-512-r3", "Raw"),
       //ConcurrentPkTestCase("FrodoKEM", "FrodoKEM-640-SHAKE", "Raw"),
