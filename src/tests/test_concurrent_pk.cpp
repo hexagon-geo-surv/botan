@@ -12,6 +12,7 @@
    #include <botan/rng.h>
    #include <botan/internal/fmt.h>
    #include <future>
+   #include <sstream>
 #endif
 
 namespace Botan_Tests {
@@ -36,9 +37,18 @@ class ConcurrentPkTestCase {
       const std::string& algo_name() const { return m_pk_algo; }
 
       const std::string& op_params() const { return m_op_params; }
-
       Test::Result result(const std::string_view operation) const {
-         return Test::Result(Botan::fmt("Concurrent {} {} {} {}", operation, m_pk_algo, m_keygen_params, m_op_params));
+         std::ostringstream name;
+         name << "Concurrent " << m_pk_algo;
+         if(!m_keygen_params.empty()) {
+            name << " " << m_keygen_params;
+         }
+         if(!m_op_params.empty()) {
+            name << " " << m_op_params;
+         }
+         name << " " << operation;
+
+         return Test::Result(name.str());
       }
 
       std::unique_ptr<Botan::Private_Key> try_create_key(Botan::RandomNumberGenerator& rng) const {
@@ -62,7 +72,7 @@ Test::Result test_concurrent_signing(const ConcurrentPkTestCase& tc) {
 
    auto rng = Test::new_rng(result.who());
    auto privkey = tc.try_create_key(*rng);
-   if(!privkey) {
+   if(privkey == nullptr) {
       result.test_note("Skipping due to missing algorithm", tc.algo_name());
       return result;
    }
@@ -362,18 +372,18 @@ Test::Result test_concurrent_key_agreement(const ConcurrentPkTestCase& tc) {
 
 std::vector<Test::Result> concurrent_signing_and_verification_tests() {
    const std::vector<ConcurrentPkTestCase> test_cases = {
-      //ConcurrentPkTestCase("RSA", "1536", "PKCS1v15(SHA-256)"),
+      ConcurrentPkTestCase("RSA", "1536", "PKCS1v15(SHA-256)"),
       ConcurrentPkTestCase("ECDSA", "secp256r1", "SHA-256"),
       ConcurrentPkTestCase("ECKCDSA", "secp256r1", "SHA-256"),
       ConcurrentPkTestCase("ECGDSA", "secp256r1", "SHA-256"),
       ConcurrentPkTestCase("SM2", "sm2p256v1", "SM3"),
       ConcurrentPkTestCase("Ed25519", "", "Pure"),
       ConcurrentPkTestCase("Ed448", "", "Pure"),
+      ConcurrentPkTestCase("SLH-DSA", "SLH-DSA-SHA2-128f", ""),
       //ConcurrentPkTestCase("ML-DSA", "ML-DSA-4x4", ""),
       //ConcurrentPkTestCase("Dilithium", "Dilithium-4x4-r3", ""),
-      //ConcurrentPkTestCase("SLH-DSA", "SLH-DSA-SHA2-128f", ""),
       //ConcurrentPkTestCase("XMSS", "XMSS-SHA2_10_256", "SHA2_10_256"),
-      //ConcurrentPkTestCase("HSS-LMS", "SHA-256,HW(5,8)", ""),
+      ConcurrentPkTestCase("HSS-LMS", "SHA-256,HW(5,8)", ""),
    };
 
    std::vector<Test::Result> results;
