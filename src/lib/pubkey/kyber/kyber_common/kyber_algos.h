@@ -91,7 +91,16 @@ class PolynomialSampler {
       }
 
    private:
-      KyberSamplingRandomness prf(size_t bytes) { return m_mode.symmetric_primitives().PRF(m_seed, m_nonce++, bytes); }
+      KyberSamplingRandomness prf(size_t bytes) {
+         const auto& sym = m_mode.symmetric_primitives();
+         auto seed_span = m_seed.get();
+         if(!m_prf_xof) {
+            m_prf_xof = sym.create_seeded_PRF(seed_span, m_nonce++);
+         } else {
+            sym.reseed_PRF(*m_prf_xof, seed_span, m_nonce++);
+         }
+         return m_prf_xof->output<KyberSamplingRandomness>(bytes);
+      }
 
       void sample_poly_cbd(KyberPoly& poly, KyberConstants::KyberEta eta) {
          const auto randomness = [&] {
@@ -112,6 +121,7 @@ class PolynomialSampler {
       StrongSpan<const SeedT> m_seed;
       const KyberConstants& m_mode;
       uint8_t m_nonce;
+      std::unique_ptr<Botan::XOF> m_prf_xof;
 };
 
 template <typename T>
