@@ -66,7 +66,10 @@ class XMSS_PrivateKey_Internal {
             m_wots_derivation_method(wots_derivation_method),
             m_prf(rng.random_vec(xmss_params.element_size())),
             m_private_seed(rng.random_vec(xmss_params.element_size())),
-            m_index_reg(XMSS_Index_Registry::get_instance()) {}
+            m_index_reg(XMSS_Index_Registry::get_instance()) {
+         // Eagerly register so the entry exists before any concurrent signing
+         recover_global_leaf_index();
+      }
 
       XMSS_PrivateKey_Internal(const XMSS_Parameters& xmss_params,
                                const XMSS_WOTS_Parameters& wots_params,
@@ -78,7 +81,10 @@ class XMSS_PrivateKey_Internal {
             m_wots_derivation_method(wots_derivation_method),
             m_prf(std::move(prf)),
             m_private_seed(std::move(private_seed)),
-            m_index_reg(XMSS_Index_Registry::get_instance()) {}
+            m_index_reg(XMSS_Index_Registry::get_instance()) {
+         // Eagerly register so the entry exists before any concurrent signing
+         recover_global_leaf_index();
+      }
 
       XMSS_PrivateKey_Internal(const XMSS_Parameters& xmss_params,
                                const XMSS_WOTS_Parameters& wots_params,
@@ -149,7 +155,7 @@ class XMSS_PrivateKey_Internal {
          BOTAN_ASSERT(
             m_private_seed.size() == m_xmss_params.element_size() && m_prf.size() == m_xmss_params.element_size(),
             "Trying to retrieve index for partially initialized key");
-         return m_index_reg.get(m_private_seed, m_prf);
+         return m_index_reg.get(m_xmss_params.oid(), m_private_seed, m_prf);
       }
 
       void set_unused_leaf_index(size_t idx) {
