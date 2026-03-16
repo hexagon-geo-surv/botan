@@ -69,7 +69,7 @@ class MLDSA_Signing_Parameters {
       template <typename T>
       class Once_Settable {
          public:
-            explicit Once_Settable(T default_value) : m_is_set(false), m_value(default_value) {}
+            explicit Once_Settable(const T& default_value) : m_is_set(false), m_value(default_value) {}
 
             void set_value(const T& value) {
                if(m_is_set) {
