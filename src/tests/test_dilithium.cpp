@@ -21,6 +21,8 @@
    #include "test_rng.h"
 #endif
 
+#include <format>
+
 namespace Botan_Tests {
 
 namespace {
@@ -287,5 +289,71 @@ BOTAN_REGISTER_TEST("pubkey", "dilithium_keygen", Dilithium_Keygen_Tests);
 #endif
 
 }  // namespace
+
+#if defined(BOTAN_HAS_DILITHIUM_COMMON)
+
+class MLDSA_Param_Tests final : public Test {
+   public:
+      std::vector<Test::Result> run() override {
+         std::string test_name = "MLDSA_Param_Tests";
+         std::vector<Test::Result> results;
+         auto rng = Test::new_rng(test_name);
+
+         const std::string msg = "The quick brown fox jumps over the lazy dog.";
+         const std::vector<uint8_t> msgvec(msg.data(), msg.data() + msg.size());
+
+         const Botan::Dilithium_PrivateKey priv_key(*rng, Botan::DilithiumMode::ML_DSA_4x4);
+
+         std::vector<std::pair<bool, std::string>> sign_params = {
+            std::make_pair(true, std::string("")),
+            std::make_pair(true, std::string("Randomized,Pure")),
+            std::make_pair(true, std::string("Deterministic,ctx_hex=00AAFF")),
+            std::make_pair(false, std::string("ctx_hex=,ctx_hex=")),
+            std::make_pair(false, std::string("Randomized,Deterministic")),
+            std::make_pair(false, std::string("ctx=AA")),
+            std::make_pair(false, std::string("X")),
+            std::make_pair(false, std::string("ctx=A"))};
+
+         for(const auto& [expect_success, param_str] : sign_params) {
+            Test::Result result(std::format("{}: {}", test_name, param_str));
+            std::unique_ptr<Botan::PK_Signer> signer;
+            bool exc = false;
+            try {
+               signer = std::make_unique<Botan::PK_Signer>(Botan::PK_Signer(priv_key, *rng, param_str));
+            } catch(Botan::Exception&) {
+               exc = true;
+            }
+            if(exc) {
+               if(!expect_success) {
+                  result.test_success("invalid parameter string rejected");
+               } else {
+                  result.test_failure("unexpected failure of signature op parameter string");
+               }
+               results.push_back(result);
+               continue;
+            } else {
+               if(!expect_success) {
+                  result.test_failure("parameter string was unexpectedly accepted");
+               } else {
+                  result.test_success("valid parameter string accepted");
+               }
+            }
+
+            auto verifier = Botan::PK_Verifier(*priv_key.public_key(), param_str);
+
+            auto signature = signer->sign_message(msgvec, *rng);
+            const auto priv_key_encoded = priv_key.private_key_bits();
+            const auto pub_key_encoded = priv_key.public_key_bits();
+
+            result.test_is_true("signature verification", verifier.verify_message(msgvec, signature));
+            results.push_back(result);
+         }
+
+         return results;
+      }
+};
+
+BOTAN_REGISTER_TEST("pubkey", "mldsa_op_params", MLDSA_Param_Tests);
+#endif
 
 }  // namespace Botan_Tests

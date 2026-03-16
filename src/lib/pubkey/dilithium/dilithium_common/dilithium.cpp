@@ -66,6 +66,27 @@ DilithiumMode::Mode dilithium_mode_from_string(std::string_view str) {
 
 class MLDSA_Signing_Parameters {
    public:
+      template <typename T>
+      class Once_Settable {
+         public:
+            explicit Once_Settable(T default_value) : m_is_set(false), m_value(default_value) {}
+
+            void set_value(const T& value) {
+               if(m_is_set) {
+                  throw Invalid_Argument(
+                     "signature/verification parameter contains value for same key (at least) twice");
+               }
+               m_is_set = true;
+               m_value = value;
+            }
+
+            const T& value() const { return m_value; }
+
+         private:
+            bool m_is_set;
+            T m_value;
+      };
+
       explicit MLDSA_Signing_Parameters(std::string_view param_str) {
          const char* error_tmpl = "Parameter string '{}' is not a valid ML-DSA or Dilithium parameter specification";
          if(param_str.size() == 0) {
@@ -73,31 +94,27 @@ class MLDSA_Signing_Parameters {
             return;
          }
          const auto v = split_on(param_str, ',');
-         bool rndmz_set = false;
-         bool ctx_set = false;
+         Once_Settable<bool> rndmzd(false);
+         Once_Settable<std::vector<uint8_t>> ctx({});
          for(const auto& y : v) {
             if(y == "Pure") {
                continue;
             }
-            if((y == "Deterministic" || y == "Randomized") && rndmz_set) {
-               throw Invalid_Argument(fmt(error_tmpl), param_str);
-            }
             if(y == "Deterministic") {
-               rndmz_set = true;
-               this->m_randomized = false;
+                rndmzd.set_value(false);
                continue;
             }
             if(y == "Randomized") {
-               rndmz_set = true;
+                rndmzd.set_value(true);
                continue;
             }
             const char* ctx_key = "ctx_hex";
             const size_t prefix_len = std::char_traits<char>::length(ctx_key);
             if(y.starts_with(ctx_key)) {
-               if(ctx_set || (y.size() > prefix_len && y[prefix_len] != '=')) {
+               if((y.size() > prefix_len && y[prefix_len] != '=')) {
                   throw Invalid_Argument(fmt(error_tmpl), param_str);
                }
-               ctx_set = true;
+               std::string z = ""; 
                // check only whether a non-empty context parameter string was specified
                if(y.size() > prefix_len + 1) {
                   // no whitespace allowed
@@ -105,11 +122,13 @@ class MLDSA_Signing_Parameters {
                      throw Invalid_Argument(fmt(error_tmpl), param_str);
                   }
                   // get the value of the hex-encoded context string
-                  const auto z = y.substr(prefix_len + 1);
-                  const auto ctx = hex_decode(z);
-                  this->m_user_context.insert(m_user_context.end(), ctx.begin(), ctx.end());
+                  z = y.substr(prefix_len + 1);
                }
+               ctx.set_value(hex_decode(z));
+               this->m_user_context.insert(m_user_context.end(), ctx.value().begin(), ctx.value().end());
+               continue;
             }
+            throw Invalid_Argument(Botan::fmt("invalid token parameter string for ML-DSA/Dilithium: ", y));
          }
       }
 
