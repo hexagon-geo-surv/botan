@@ -12,7 +12,6 @@ mldsa_comp_parameters.h
 </header:public>
 
 <header:internal>
-mldsa_comp_keys.h
 </header:internal>
 
 <requires>

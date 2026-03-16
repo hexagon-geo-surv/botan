@@ -1,11 +1,18 @@
+/*
+ * ML-DSA Composite Signature Schemes
+ * (C) 2026 Falko Strenzke, MTG AG
+ *
+ * Botan is released under the Simplified BSD License (see license.txt)
+ **/
 
-#include "botan/exceptn.h"
-#include "botan/hex.h"
-#include "botan/internal/fmt.h"
-#include <botan/asn1_obj.h>
 #include <botan/mldsa_comp_parameters.h>
+
+#include <botan/asn1_obj.h>
+#include <botan/exceptn.h>
+#include <botan/hex.h>
 #include <botan/oids.h>
 #include <botan/pss_params.h>
+#include <botan/internal/fmt.h>
 #include <cstring>
 #include <string_view>
 

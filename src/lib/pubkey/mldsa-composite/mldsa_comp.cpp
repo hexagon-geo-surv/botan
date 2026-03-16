@@ -21,8 +21,6 @@
 #include <string_view>
 #include <vector>
 
-#include <iostream>
-
 namespace Botan {
 
 namespace {

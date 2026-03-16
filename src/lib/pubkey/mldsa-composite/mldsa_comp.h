@@ -8,8 +8,8 @@
 #ifndef BOTAN_MLDSA_COMP_H_
 #define BOTAN_MLDSA_COMP_H_
 
-#include "botan/ml_dsa.h"
 #include <botan/dilithium.h>
+#include <botan/ml_dsa.h>
 #include <botan/mldsa_comp_parameters.h>
 #include <botan/pk_keys.h>
 #include <memory>
