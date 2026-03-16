@@ -466,6 +466,7 @@ std::unique_ptr<Private_Key> load_private_key(const AlgorithmIdentifier& alg_id,
       return std::make_unique<Classic_McEliece_PrivateKey>(alg_id, key_bits);
    }
 #endif
+
    throw Decoding_Error(fmt("Unknown or unavailable public key algorithm '{}'", alg_name));
 }
 

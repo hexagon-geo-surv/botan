@@ -194,17 +194,16 @@ EC_PrivateKey::EC_PrivateKey(const AlgorithmIdentifier& alg_id,
    }
    if(!key_parameters.empty()) {
       if(group) {
-         ;
          if(EC_Group(key_parameters) != *group) {
             throw Invalid_Argument(
-               "Domain parameters supplied AlgorithmIdentifier does not match the ECC private key's domain parameters");
+               "Domain parameters supplied AlgorithmIdentifier does not match the ECC private key's domain parameters in EC_PrivateKey construction");
          }
       } else {
          group = std::make_unique<EC_Group>(key_parameters);
       }
    }
    if(!group) {
-      throw Invalid_Argument("Domain parameters are not supplied in EC_PrivateKey constructions");
+      throw Invalid_Argument("Domain parameters are not supplied in EC_PrivateKey construction");
    }
 
    m_private_key = std::make_shared<EC_PrivateKey_Data>(*group, private_key_bits);

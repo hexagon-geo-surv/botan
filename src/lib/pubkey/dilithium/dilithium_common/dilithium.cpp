@@ -521,9 +521,6 @@ std::unique_ptr<PK_Ops::Signature> Dilithium_PrivateKey::create_signature_op(Ran
 
    MLDSA_Signing_Parameters sig_par(params);
 
-   // BOTAN_ARG_CHECK(params.empty() || params == "Deterministic" || params == "Randomized",
-   //                 "Unexpected parameters for signing with ML-DSA/Dilithium");
-
    // FIPS 204, Section 3.4
    //   By default, this standard specifies the signing algorithm to use both
    //   types of randomness [fresh from the RNG and a value in the private key].

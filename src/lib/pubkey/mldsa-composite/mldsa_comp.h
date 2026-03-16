@@ -1,5 +1,5 @@
 /*
- * ML-DSA Composite Signature Schemes 
+ * ML-DSA Composite Signature Schemes
  * (C) 2026 Falko Strenzke, MTG AG
  *
  * Botan is released under the Simplified BSD License (see license.txt)
@@ -43,8 +43,8 @@ class BOTAN_PUBLIC_API(3, 0) MLDSA_Composite_PublicKey : public virtual Public_K
       OID object_identifier() const override;
 
       /**
-       * Return the pessimistic estimated key strength, i.e., the smaller strength of the component keys. 
-       * This is justified by the assumption that composite algorithms are used in the assumption that 
+       * Return the pessimistic estimated key strength, i.e., the smaller strength of the component keys.
+       * This is justified by the assumption that composite algorithms are used in the assumption that
        * one of the component algorithms might be broken.
        *
        * @return the mimium of the componens' estimated strengths.
@@ -54,7 +54,7 @@ class BOTAN_PUBLIC_API(3, 0) MLDSA_Composite_PublicKey : public virtual Public_K
       }
 
       /**
-       * 
+       *
        * @return The sum of the component key lengths.
        */
       size_t key_length() const override { return m_mldsa_pubkey->key_length() + m_traditional_pubkey->key_length(); }

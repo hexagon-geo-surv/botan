@@ -34,8 +34,7 @@
 
    #include "test_pubkey.h"
    #include "test_rng.h"
-// TODO: SPLIT OUT TESTS THAT DON'T REQUIRE FILESYSTEM
-   #if defined(BOTAN_HAS_X509_CERTIFICATES) && defined(BOTAN_TARGET_OS_HAS_FILESYSTEM)
+   #if defined(BOTAN_HAS_X509_CERTIFICATES)
       #include <botan/pkix_enums.h>
       #include <botan/x509cert.h>
    #endif
@@ -472,7 +471,6 @@ class MLDSA_Composite_KAT_Tests : public Text_Based_Test {
          if(exc_during_privkey_decoding) {
             return result;
          }
-         // sign data
          sign_and_verify(*privkey, *pubkey, *rng, result, "produced by decoded private key");
          return result;
       }

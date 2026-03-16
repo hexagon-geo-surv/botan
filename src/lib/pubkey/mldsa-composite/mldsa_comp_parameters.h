@@ -1,5 +1,5 @@
 /*
- * ML-DSA Composite Signature Schemes 
+ * ML-DSA Composite Signature Schemes
  * (C) 2026 Falko Strenzke, MTG AG
  *
  * Botan is released under the Simplified BSD License (see license.txt)
