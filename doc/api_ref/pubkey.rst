@@ -1039,7 +1039,7 @@ Botan implements the following signature algorithms:
    - ``<user ID>,<HashFunction>``
 
 #. ML-DSA (Dilithium).
-  Takes and optional parameter string formed by comma-separated list of the following format ``[(Deterministic|Randomized),][Pure,][ctx_hex=<hex-value>]``, where the ordering of the comma-separated elements is arbitrary. The specification of ``Pure`` is redundant since currently only the pure variant of ML-DSA is implemented. The defaults of the other values are ``Deterministic`` and an empty context parameter (`ctx_hex`).  Non-empty context parameters are only supported by ML-DSA, but not by Dilithium. ``Deterministic`` or ``Randomized`` may also be specified in a verification operation thought it has no effect there.
+  Takes and optional parameter string formed by comma-separated list of the following format ``[(Deterministic|Randomized),][Pure,][ctx_hex=<hex-value>]``, where the ordering of the comma-separated elements is arbitrary. The specification of ``Pure`` is redundant since currently only the pure variant of ML-DSA is implemented. The defaults of the other values are ``Randomized`` and an empty context parameter (`ctx_hex`).  Non-empty context parameters are only supported by ML-DSA, but not by Dilithium. ``Deterministic`` or ``Randomized`` may also be specified in a verification operation thought it has no effect there.
 #. SLH-DSA.
    Takes the optional parameter ``Deterministic`` (default) or ``Randomized``.
 #. XMSS. Takes no parameter.
