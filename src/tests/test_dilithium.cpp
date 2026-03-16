@@ -308,7 +308,7 @@ class MLDSA_Param_Tests final : public Test {
          const std::string msg = "The quick brown fox jumps over the lazy dog.";
          const std::vector<uint8_t> msgvec(msg.data(), msg.data() + msg.size());
 
-         const Botan::Dilithium_PrivateKey priv_key(*rng, Botan::DilithiumMode::ML_DSA_4x4);
+         Botan::Dilithium_PrivateKey priv_key(*rng, Botan::DilithiumMode::ML_DSA_4x4);
 
          std::vector<Test_Case> sign_params = {Test_Case{true, std::string(""), true},
                                                Test_Case{true, std::string("Randomized,Pure"), true},
@@ -320,7 +320,7 @@ class MLDSA_Param_Tests final : public Test {
                                                Test_Case{false, std::string("ctx=A"), true}};
 
          for(const auto& [expect_success, param_str, random_sig] : sign_params) {
-            Test::Result result(std::format("{}: {}", test_name, param_str));
+            Test::Result result(std::format("{}: param string = '{}'", test_name, param_str));
             std::unique_ptr<Botan::PK_Signer> signer;
             bool exc = false;
             try {
@@ -340,8 +340,6 @@ class MLDSA_Param_Tests final : public Test {
             auto signature2 = signer->sign_message(msgvec, *rng);
             result.test_bool_eq(
                std::format("signature randomization (param = '{}')", param_str), signature != signature2, random_sig);
-            const auto priv_key_encoded = priv_key.private_key_bits();
-            const auto pub_key_encoded = priv_key.public_key_bits();
             result.test_is_true("signature verification", verifier.verify_message(msgvec, signature));
             results.push_back(result);
          }
