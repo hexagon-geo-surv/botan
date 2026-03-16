@@ -21,6 +21,8 @@
 #include <string_view>
 #include <vector>
 
+#include <iostream>
+
 namespace Botan {
 
 namespace {
@@ -74,19 +76,19 @@ class MLDSA_Composite_Verification_Operation final : public PK_Ops::Verification
             m_traditional_ver_op(trad_pubkey->create_verification_op(param.traditional_padding(), "")) {}
 
       bool verify(std::span<const uint8_t> ph, std::span<const uint8_t> sig) override {
+         size_t mldsa_sig_size = m_parameters.mldsa_signature_size();
+
+         if(sig.size() <= mldsa_sig_size) {
+            // return early before the state of the component verification OPs is affected
+            return false;
+         }
          //  M' = Prefix || Label || len(ctx) || ctx || PH( M )
          std::string msg_str = "CompositeAlgorithmSignatures2025";
          msg_str += m_parameters.label();
          std::vector<uint8_t> msg(msg_str.begin(), msg_str.end());
          msg.push_back(0);  // ctx = empty
          msg.insert(msg.end(), ph.begin(), ph.end());
-         size_t mldsa_sig_size = m_parameters.mldsa_signature_size();
-         m_mldsa_ver_op->update(msg);
-         m_traditional_ver_op->update(msg);
 
-         if(sig.size() <= mldsa_sig_size) {
-            return false;
-         }
          std::span<const uint8_t> mldsa_sig(sig.begin(), sig.begin() + mldsa_sig_size);
          std::span<const uint8_t> trad_sig(sig.begin() + mldsa_sig_size, sig.end());
          std::vector<uint8_t> trad_sig_buf;
@@ -105,6 +107,11 @@ class MLDSA_Composite_Verification_Operation final : public PK_Ops::Verification
             trad_sig = trad_sig_buf;
          }
 #endif
+         // We do the update of the internal OPs directly before invoking their verifications,
+         // because any early returns of this function otherwise leave them in the state with
+         // a pending message.
+         m_mldsa_ver_op->update(msg);
+         m_traditional_ver_op->update(msg);
          // must invoke both signature verifications to ensure the correct hasher state
          bool result = m_mldsa_ver_op->is_valid_signature(mldsa_sig);
          result &= m_traditional_ver_op->is_valid_signature(trad_sig);

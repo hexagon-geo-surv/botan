@@ -269,6 +269,13 @@ class MLDSA_Composite_Sig_Detail_Tests : public Test {
             Botan::PK_Verifier verifier2(*pub_key_cast, "");
             verifier2.update(message);
             result.test_bool_eq("verification of false signature", verifier2.check_signature(false_signature), false);
+            verifier2.update(message);
+            result.test_is_true(
+               std::format(
+                  "verification of correct signature after failed verification, false signature length = {}, length of correct signature = {}",
+                  false_signature.size(),
+                  signature.size()),
+               verifier2.check_signature(signature));
          }
          return result;
       }
