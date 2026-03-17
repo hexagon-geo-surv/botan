@@ -54,7 +54,7 @@ std::vector<uint8_t> decode_var_base64(const VarMap& vars, std::string_view var)
 }
 
 void mimic_speed_test(Botan::RandomNumberGenerator& rng, Test::Result& result) {
-   // test for a real-life bug that occured because of lazy evaluation of the 2nd signature verification.
+   // test for a real-life bug that occurred because of lazy evaluation of the 2nd signature verification.
    std::vector<uint8_t> message;
    std::vector<uint8_t> signature;
    std::vector<uint8_t> bad_signature;
@@ -84,7 +84,7 @@ void sign_and_verify(const Botan::Private_Key& priv_key,
    Botan::PK_Signer signer(priv_key, rng, "");
    signer.update(message);
    std::vector<uint8_t> signature = signer.signature(rng);
-   size_t sig_max_len = signer.signature_length();
+   const size_t sig_max_len = signer.signature_length();
    test_result.test_sz_lte("signature not larger than indicated by signature OP", signature.size(), sig_max_len);
 
    Botan::PK_Verifier verifier(pub_key, "");
@@ -127,13 +127,13 @@ class MLDSA_Composite_Key_Detail_Tests : public Test {
    public:
       static Test::Result run_detail_test(Botan::MLDSA_Composite_Param::id_t id) {
          auto param = Botan::MLDSA_Composite_Param::from_id_or_throw(id);
-         std::string test_name = std::string("MLDSA_Composite_Key_Detail_") + param.id_str();
+         const std::string test_name = std::string("MLDSA_Composite_Key_Detail_") + param.id_str();
          Test::Result result(test_name);
          auto rng = Test::new_rng(test_name);
 
          const Botan::MLDSA_Composite_PrivateKey priv_key_generated(*rng, param);
          Botan::MLDSA_Composite_PrivateKey priv_key_generated_cp(priv_key_generated);
-         Botan::MLDSA_Composite_PrivateKey priv_key_other(*rng, param);
+         const Botan::MLDSA_Composite_PrivateKey priv_key_other(*rng, param);
 
          auto pub_key_generated = priv_key_generated.public_key();
          const Botan::Public_Key* pub_key_cast = static_cast<const Botan::Public_Key*>(&priv_key_generated);
@@ -154,7 +154,7 @@ class MLDSA_Composite_Key_Detail_Tests : public Test {
          const auto false_public_keys = generate_false_keys(pub_key_bits, param.mldsa_pubkey_size());
 
          try {
-            Botan::MLDSA_Composite_PublicKey pub_key_dec(param.id(), pub_key_bits);
+            const Botan::MLDSA_Composite_PublicKey pub_key_dec(param.id(), pub_key_bits);
             Botan::MLDSA_Composite_PublicKey pub_key2(pub_key_dec);
             auto priv_key2(priv_key_generated_cp);
             priv_key_generated_cp = priv_key_other;  // must not influence the copy made above
@@ -195,7 +195,7 @@ class MLDSA_Composite_Key_Detail_Tests : public Test {
       }
 
       std::vector<Test::Result> run() override {
-         std::vector<Botan::MLDSA_Composite_Param> params {
+         const std::vector<Botan::MLDSA_Composite_Param> params {
    #if defined(BOTAN_HAS_RSA)
             Botan::MLDSA_Composite_Param::from_id_or_throw(
                Botan::MLDSA_Composite_Param::id_t::MLDSA44_RSA2048_PKCS15_SHA256),
@@ -245,7 +245,7 @@ class MLDSA_Composite_Sig_Detail_Tests : public Test {
    public:
       static Test::Result run_detail_test(Botan::MLDSA_Composite_Param::id_t id) {
          auto param = Botan::MLDSA_Composite_Param::from_id_or_throw(id);
-         std::string test_name = std::string("MLDSA_Composite_Signature_Detail_") + param.id_str();
+         const std::string test_name = std::string("MLDSA_Composite_Signature_Detail_") + param.id_str();
          Test::Result result(test_name);
          auto rng = Test::new_rng(test_name);
 
@@ -281,7 +281,7 @@ class MLDSA_Composite_Sig_Detail_Tests : public Test {
       }
 
       std::vector<Test::Result> run() override {
-         std::vector<Botan::MLDSA_Composite_Param> params {
+         const std::vector<Botan::MLDSA_Composite_Param> params {
    #if defined(BOTAN_HAS_RSA)
             Botan::MLDSA_Composite_Param::from_id_or_throw(
                Botan::MLDSA_Composite_Param::id_t::MLDSA44_RSA2048_PKCS15_SHA256),
@@ -345,7 +345,7 @@ class MLDSA_Composite_RT_Tests : public Test {
    public:
       static Test::Result run_detail_test(Botan::MLDSA_Composite_Param::id_t id) {
          auto param = Botan::MLDSA_Composite_Param::from_id_or_throw(id);
-         std::string test_name = std::string("MLDSA_Composite_round_trip_") + param.id_str();
+         const std::string test_name = std::string("MLDSA_Composite_round_trip_") + param.id_str();
          Test::Result result(test_name);
          auto rng = Test::new_rng(test_name);
 
@@ -360,7 +360,7 @@ class MLDSA_Composite_RT_Tests : public Test {
                sign_and_verify(*priv_key_generated, *pub_key_generated, *rng, result, "produced with generated key");
             }
          }
-         uint64_t rep_cnt = options().run_long_tests() ? 150 : 1;
+         const uint64_t rep_cnt = options().run_long_tests() ? 150 : 1;
          for(uint64_t i = 1; i < rep_cnt; i++) {
             Botan::secure_vector<uint8_t> private_enc = priv_key_generated->private_key_bits();
             if(test_name.find("ECDSA") != std::string::npos) {
@@ -390,11 +390,11 @@ class MLDSA_Composite_RT_Tests : public Test {
       static void check_encoded_ecdsa_private_key(std::span<uint8_t> composite_private_key, Test::Result& result) {
          Botan::OID key_parameters;
          Botan::secure_vector<uint8_t> private_key_bits;
-         Botan::secure_vector<uint8_t> public_key_bits;
+         const Botan::secure_vector<uint8_t> public_key_bits;
          if(composite_private_key.size() < 33) {
             result.test_failure("encoded ECDSA component private key is too short");
          }
-         std::vector<uint8_t> ecdsa_private_enc(composite_private_key.begin() + 32, composite_private_key.end());
+         const std::vector<uint8_t> ecdsa_private_enc(composite_private_key.begin() + 32, composite_private_key.end());
          try {
             Botan::BER_Decoder(ecdsa_private_enc)
                .start_sequence()
@@ -497,9 +497,9 @@ class MLDSA_Composite_X509_Tests : public Text_Based_Test {
             "061550234D158C5EC95595FE04EF7A25767F2E24CC2BC479D09D86DC9ABCFDE7056A8C266F9EF97ED08541DBD2E1FFA1"));
          Test::Result result(name);
 
-         std::vector<uint8_t> x5c = decode_var_base64(vars, "x5c");
+         const std::vector<uint8_t> x5c = decode_var_base64(vars, "x5c");
          const Botan::X509_Certificate cert(x5c);
-         Test::Result this_result(name);
+         const Test::Result this_result(name);
          auto ver_res = cert.verify_signature(*cert.subject_public_key());
          result.test_is_true("signature of certificate verifies", ver_res.first == Botan::Certificate_Status_Code::OK);
 

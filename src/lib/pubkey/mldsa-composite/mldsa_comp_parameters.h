@@ -112,15 +112,16 @@ class BOTAN_PUBLIC_API(3, 0) MLDSA_Composite_Param {
                             uint32_t traditional_key_size) noexcept;
 
    private:
-      id_t m_id;
+      // m_id_str, m_label, m_prehash_func, m_traditional_algorithm, m_traditional_padding, m_curve, m_id, m_traditional_key_size, m_mldsa_variant,
       const char* m_id_str;
       const char* m_label;
       const char* m_prehash_func;
-      DilithiumMode::Mode m_mldsa_variant;
       const char* m_traditional_algorithm;
       const char* m_traditional_padding;
       const char* m_curve;
+      id_t m_id;
       uint32_t m_traditional_key_size;
+      DilithiumMode::Mode m_mldsa_variant;
 
       static const MLDSA_Composite_Param mldsa_composite_registry[];
 };

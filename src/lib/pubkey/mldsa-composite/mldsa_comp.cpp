@@ -48,8 +48,7 @@ std::span<const uint8_t> traditional_pubkey_subspan(const MLDSA_Composite_Param&
    if(key_bits.size() <= 1 + offset) {
       throw Invalid_Argument(fmt("encoded traditional component public key is too short (len = {})", key_bits.size()));
    }
-   std::span<const uint8_t> result(key_bits.begin() + offset, key_bits.end());
-   return result;
+   return std::span<const uint8_t>(key_bits.begin() + offset, key_bits.end());
 }
 
 std::span<const uint8_t> traditional_privkey_subspan(const MLDSA_Composite_Param& param,
@@ -58,8 +57,7 @@ std::span<const uint8_t> traditional_privkey_subspan(const MLDSA_Composite_Param
    if(key_bits.size() <= 1 + offset) {
       throw Invalid_Argument("encoded traditional component private key is too short");
    }
-   std::span<const uint8_t> result(key_bits.begin() + offset, key_bits.end());
-   return result;
+   return std::span<const uint8_t>(key_bits.begin() + offset, key_bits.end());
 }
 }  // namespace
 
@@ -74,7 +72,7 @@ class MLDSA_Composite_Verification_Operation final : public PK_Ops::Verification
             m_traditional_ver_op(trad_pubkey->create_verification_op(param.traditional_padding(), "")) {}
 
       bool verify(std::span<const uint8_t> ph, std::span<const uint8_t> sig) override {
-         size_t mldsa_sig_size = m_parameters.mldsa_signature_size();
+         const size_t mldsa_sig_size = m_parameters.mldsa_signature_size();
 
          if(sig.size() <= mldsa_sig_size) {
             // return early before the state of the component verification OPs is affected
@@ -87,7 +85,7 @@ class MLDSA_Composite_Verification_Operation final : public PK_Ops::Verification
          msg.push_back(0);  // ctx = empty
          msg.insert(msg.end(), ph.begin(), ph.end());
 
-         std::span<const uint8_t> mldsa_sig(sig.begin(), sig.begin() + mldsa_sig_size);
+         const std::span<const uint8_t> mldsa_sig(sig.begin(), sig.begin() + mldsa_sig_size);
          std::span<const uint8_t> trad_sig(sig.begin() + mldsa_sig_size, sig.end());
          std::vector<uint8_t> trad_sig_buf;
 
@@ -98,8 +96,8 @@ class MLDSA_Composite_Verification_Operation final : public PK_Ops::Verification
             BigInt si;
             dec.start_sequence().decode(ri).decode(si).end_cons();
             const auto group = Botan::EC_Group::from_name(m_parameters.curve());
-            EC_Scalar r = EC_Scalar::from_bigint(group, ri);
-            EC_Scalar s = EC_Scalar::from_bigint(group, si);
+            const EC_Scalar r = EC_Scalar::from_bigint(group, ri);
+            const EC_Scalar s = EC_Scalar::from_bigint(group, si);
 
             trad_sig_buf = EC_Scalar::serialize_pair(r, s);
             trad_sig = trad_sig_buf;
@@ -249,7 +247,7 @@ std::unique_ptr<Private_Key> MLDSA_Composite_PublicKey::generate_another(RandomN
 // ALLOW NON-EMPTY CTX VIA PARAMS?
 std::unique_ptr<PK_Ops::Verification> MLDSA_Composite_PublicKey::create_verification_op(
    std::string_view params_for_ctx, std::string_view provider) const {
-   if(params_for_ctx != "") {
+   if(!params_for_ctx.empty()) {
       throw Botan::Invalid_Argument("signature parameters not supported for MLDSA composite signatures");
    }
    if(provider.empty() || provider == "base") {
@@ -316,7 +314,7 @@ secure_vector<uint8_t> MLDSA_Composite_PrivateKey::encode_traditional_private_ke
         *   OBJECT IDENTIFIER prime256v1 (1 2 840 10045 3 1 7)
         *   }
         * } */
-      OID oid = OIDS::str2oid_or_empty(m_parameters->curve());
+      const OID oid = OIDS::str2oid_or_empty(m_parameters->curve());
       BOTAN_ASSERT(!oid.empty(), "lookup of MLDSA-composite curve OID");
       trad_bytes = DER_Encoder()
                       .start_sequence()
@@ -361,7 +359,7 @@ std::unique_ptr<Public_Key> MLDSA_Composite_PrivateKey::public_key() const {
 std::unique_ptr<PK_Ops::Signature> MLDSA_Composite_PrivateKey::create_signature_op(RandomNumberGenerator& rng,
                                                                                    std::string_view params_for_ctx,
                                                                                    std::string_view provider) const {
-   if(params_for_ctx != "") {
+   if(!params_for_ctx.empty()) {
       throw Botan::Invalid_Argument("signature parameters not supported for MLDSA composite signatures");
    }
    if(provider.empty() || provider == "base") {

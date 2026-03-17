@@ -308,16 +308,17 @@ class MLDSA_Param_Tests final : public Test {
          const std::string msg = "The quick brown fox jumps over the lazy dog.";
          const std::vector<uint8_t> msgvec(msg.data(), msg.data() + msg.size());
 
-         Botan::Dilithium_PrivateKey priv_key(*rng, Botan::DilithiumMode::ML_DSA_4x4);
+         const Botan::Dilithium_PrivateKey priv_key(*rng, Botan::DilithiumMode::ML_DSA_4x4);
 
-         std::vector<Test_Case> sign_params = {Test_Case{true, std::string(""), true},
-                                               Test_Case{true, std::string("Randomized,Pure"), true},
-                                               Test_Case{true, std::string("Deterministic,ctx_hex=00AABB"), false},
-                                               Test_Case{false, std::string("ctx_hex=,ctx_hex="), true},
-                                               Test_Case{false, std::string("Randomized,Deterministic"), false},
-                                               Test_Case{false, std::string("ctx=AA"), true},
-                                               Test_Case{false, std::string("X"), true},
-                                               Test_Case{false, std::string("ctx=A"), true}};
+         const std::vector<Test_Case> sign_params = {
+            Test_Case{true, std::string(""), true},
+            Test_Case{true, std::string("Randomized,Pure"), true},
+            Test_Case{true, std::string("Deterministic,ctx_hex=00AABB"), false},
+            Test_Case{false, std::string("ctx_hex=,ctx_hex="), true},
+            Test_Case{false, std::string("Randomized,Deterministic"), false},
+            Test_Case{false, std::string("ctx=AA"), true},
+            Test_Case{false, std::string("X"), true},
+            Test_Case{false, std::string("ctx=A"), true}};
 
          for(const auto& [expect_success, param_str, random_sig] : sign_params) {
             Test::Result result(std::format("{}: param string = '{}'", test_name, param_str));

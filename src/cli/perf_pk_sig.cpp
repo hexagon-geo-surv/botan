@@ -424,11 +424,12 @@ class PerfTest_MLDSA_Composite final : public PerfTest_PKSig {
       }
 };
 
-// NOLINTNEXTLINE(bugprone-macro-parentheses)
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usag)
    #define BOTAN_REGISTER_PERF_TEST_TMPL(name, Perf_Class)                                   \
       /* NOLINTNEXTLINE(cert-err58-cpp) */                                                   \
       const Botan_CLI::PerfTest::Registration reg_perf_##Perf_Class##_##name(                \
          #name, []() -> std::unique_ptr<Botan_CLI::PerfTest> {                               \
+            /* NOLINTNEXTLINE(bugprone-macro-parentheses) */                                 \
             return std::make_unique<Perf_Class<Botan::MLDSA_Composite_Param::id_t::name>>(); \
          })
 

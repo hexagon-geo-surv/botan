@@ -89,7 +89,7 @@ class MLDSA_Signing_Parameters {
 
       explicit MLDSA_Signing_Parameters(std::string_view param_str) : m_rndmzd(true), m_ctx({}) {
          const char* error_tmpl = "Parameter string '{}' is not a valid ML-DSA or Dilithium parameter specification";
-         if(param_str.size() == 0) {
+         if(param_str.empty()) {
             // return the defaults
             return;
          }
@@ -461,8 +461,7 @@ std::unique_ptr<Private_Key> Dilithium_PublicKey::generate_another(RandomNumberG
 
 std::unique_ptr<PK_Ops::Verification> Dilithium_PublicKey::create_verification_op(std::string_view params,
                                                                                   std::string_view provider) const {
-   //BOTAN_ARG_CHECK(params.empty() || params == "Pure", "Unexpected parameters for verifying with Dilithium");
-   MLDSA_Signing_Parameters sig_par(params);
+   const MLDSA_Signing_Parameters sig_par(params);
    if(provider.empty() || provider == "base") {
       return std::make_unique<Dilithium_Verification_Operation>(m_public, sig_par.user_context());
    }
@@ -518,8 +517,7 @@ std::unique_ptr<PK_Ops::Signature> Dilithium_PrivateKey::create_signature_op(Ran
                                                                              std::string_view params,
                                                                              std::string_view provider) const {
    BOTAN_UNUSED(rng);
-
-   MLDSA_Signing_Parameters sig_par(params);
+   const MLDSA_Signing_Parameters sig_par(params);
 
    // FIPS 204, Section 3.4
    //   By default, this standard specifies the signing algorithm to use both

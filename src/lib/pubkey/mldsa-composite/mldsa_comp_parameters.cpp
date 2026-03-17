@@ -276,19 +276,19 @@ MLDSA_Composite_Param::MLDSA_Composite_Param(id_t the_id,
                                              const char* the_label,
                                              const char* the_prehash_func,
                                              DilithiumMode::Mode the_mldsa_variant,
-                                             const char* the_traditional_algoritm,
+                                             const char* the_traditional_algorithm,
                                              const char* the_traditional_padding,
                                              const char* the_curve,
                                              uint32_t the_traditional_key_size) noexcept :
-      m_id(the_id),
       m_id_str(the_id_str),
       m_label(the_label),
       m_prehash_func(the_prehash_func),
-      m_mldsa_variant(the_mldsa_variant),
-      m_traditional_algorithm(the_traditional_algoritm),
+      m_traditional_algorithm(the_traditional_algorithm),
       m_traditional_padding(the_traditional_padding),
       m_curve(the_curve),
-      m_traditional_key_size(the_traditional_key_size) {}
+      m_id(the_id),
+      m_traditional_key_size(the_traditional_key_size),
+      m_mldsa_variant(the_mldsa_variant) {}
 
 const char* MLDSA_Composite_Param::mldsa_oid_str() const {
    if(m_mldsa_variant == DilithiumMode::ML_DSA_4x4) {
@@ -337,7 +337,7 @@ AlgorithmIdentifier MLDSA_Composite_Param::get_composite_algorithm_id() const {
 }
 
 AlgorithmIdentifier MLDSA_Composite_Param::get_mldsa_algorithm_id() const {
-   OID oid(this->mldsa_oid_str());
+   const OID oid(this->mldsa_oid_str());
    return AlgorithmIdentifier(oid, AlgorithmIdentifier::Encoding_Option::USE_EMPTY_PARAM);
 }
 
