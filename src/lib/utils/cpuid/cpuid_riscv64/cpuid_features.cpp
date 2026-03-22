@@ -20,6 +20,10 @@ std::string CPUFeature::to_string() const {
          return "scalar_sm3";
       case SCALAR_SM4:
          return "scalar_sm4";
+      case SCALAR_CLMUL:
+         return "scalar_clmul";
+      case SCALAR_SHA512:
+         return "scalar_sha512";
       case VECTOR:
          return "vector";
       case VECTOR_AES:
@@ -30,6 +34,12 @@ std::string CPUFeature::to_string() const {
          return "vector_sm3";
       case VECTOR_SM4:
          return "vector_sm4";
+      case VECTOR_CLMUL:
+         return "vector_clmul";
+      case VECTOR_SHA512:
+         return "vector_sha512";
+      case VECTOR_GCM:
+         return "vector_gcm";
    }
    throw Invalid_State("CPUFeature invalid bit");
 }
@@ -44,6 +54,10 @@ std::optional<CPUFeature> CPUFeature::from_string(std::string_view tok) {
       return SCALAR_SM3;
    } else if(tok == "scalar_sm4") {
       return SCALAR_SM4;
+   } else if(tok == "scalar_clmul") {
+      return SCALAR_CLMUL;
+   } else if(tok == "scalar_sha512") {
+      return SCALAR_SHA512;
    } else if(tok == "vector") {
       return VECTOR;
    } else if(tok == "vector_aes") {
@@ -54,6 +68,12 @@ std::optional<CPUFeature> CPUFeature::from_string(std::string_view tok) {
       return VECTOR_SM3;
    } else if(tok == "vector_sm4") {
       return VECTOR_SM4;
+   } else if(tok == "vector_clmul") {
+      return VECTOR_CLMUL;
+   } else if(tok == "vector_sha512") {
+      return VECTOR_SHA512;
+   } else if(tok == "vector_gcm") {
+      return VECTOR_GCM;
    } else {
       return {};
    }

@@ -22,12 +22,20 @@ class BOTAN_TEST_API CPUFeature {
          SCALAR_SHA256 = (1U << 1),
          SCALAR_SM3 = (1U << 2),
          SCALAR_SM4 = (1U << 3),
+         SCALAR_CLMUL = (1U << 4),
+         SCALAR_SHA512 = (1U << 5),
 
          VECTOR = (1 << 16),
          VECTOR_AES = (1U << 17),
          VECTOR_SHA256 = (1U << 18),
          VECTOR_SM3 = (1U << 19),
          VECTOR_SM4 = (1U << 20),
+         VECTOR_CLMUL = (1U << 21),
+         VECTOR_SHA512 = (1U << 22),
+         VECTOR_GCM = (1U << 23),
+
+         HW_AES = SCALAR_AES,
+         HW_CLMUL = SCALAR_CLMUL,
       };
 
       CPUFeature(Bit b) : m_bit(b) {}
