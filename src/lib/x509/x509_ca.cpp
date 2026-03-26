@@ -14,6 +14,7 @@
 #include <botan/pkcs10.h>
 #include <botan/pubkey.h>
 #include <botan/x509_ext.h>
+#include <iostream>
 
 namespace Botan {
 
@@ -138,11 +139,11 @@ X509_Certificate X509_CA::make_cert(PK_Signer& signer,
                                     const X509_DN& subject_dn,
                                     const Extensions& extensions) {
    const size_t X509_CERT_VERSION = 3;
-
+   std::cout << "X509_CA::make_cert(): before creating certificate \n";
    // clang-format off
-   return X509_Certificate(X509_Object::make_signed(
-      signer, rng, sig_algo,
-      DER_Encoder().start_sequence()
+   //
+      DER_Encoder der_enc;
+          der_enc.start_sequence()
          .start_explicit(0)
             .encode(X509_CERT_VERSION-1)
          .end_explicit()
@@ -165,10 +166,19 @@ X509_Certificate X509_CA::make_cert(PK_Signer& signer,
                .encode(extensions)
              .end_cons()
          .end_explicit()
-      .end_cons()
-      .get_contents_unlocked()
-      ));
+      .end_cons();
+
+   std::cout << "X509_CA::make_cert(): after certificate structure\n";
+      auto encoded = der_enc.get_contents_unlocked();
+   std::cout << "X509_CA::make_cert(): after get_contents_unlocked()\n";
+   auto sd = X509_Object::make_signed(
+      signer, rng, sig_algo,
+      encoded
+      );
+   std::cout << "X509_CA::make_cert(): after make_signed()\n";
+   return X509_Certificate(sd);
    // clang-format on
+   std::cout << "X509_CA::make_cert(): after creating certificate \n";
 }
 
 /*
