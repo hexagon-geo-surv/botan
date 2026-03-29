@@ -257,6 +257,24 @@ class Basic_Credentials_Manager : public Botan::Credentials_Manager {
       std::string m_psk_prf;
 };
 
+/// Policy used for testing against TLS-Anvil not useful otherwise
+class TLS_Anvil_Policy final : public Botan::TLS::Policy {
+   public:
+      std::vector<std::string> allowed_ciphers() const override {
+         return {"AES-128/GCM", "AES-256/GCM", "ChaCha20Poly1305", "AES-256", "AES-128", "3DES"};
+      }
+
+      // RSA disabled due to apparent TLS-Anvil bug
+      std::vector<std::string> allowed_key_exchange_methods() const override { return {"ECDH", "DH"}; }
+
+      std::vector<std::string> allowed_signature_methods() const override { return {"ECDSA", "RSA", "IMPLICIT"}; }
+
+      bool allow_tls12() const override { return true; }
+
+      // TLS-Anvil test server sends tiny RSA keys for some reason
+      size_t minimum_rsa_bits() const override { return 1024; }
+};
+
 class TLS_All_Policy final : public Botan::TLS::Policy {
    public:
       std::vector<std::string> allowed_ciphers() const override {
@@ -285,9 +303,7 @@ class TLS_All_Policy final : public Botan::TLS::Policy {
          return {"ECDHE_PSK", "DHE_PSK", "PSK", "ECDH", "DH", "RSA"};
       }
 
-      std::vector<std::string> allowed_signature_methods() const override {
-         return {"ECDSA", "RSA", "DSA", "IMPLICIT"};
-      }
+      std::vector<std::string> allowed_signature_methods() const override { return {"ECDSA", "RSA", "IMPLICIT"}; }
 
       bool allow_tls12() const override { return true; }
 };
@@ -307,6 +323,8 @@ inline std::shared_ptr<Botan::TLS::Policy> load_tls_policy(const std::string& po
       return std::make_shared<Botan::TLS::Datagram_Policy>();
    } else if(policy_type == "all" || policy_type == "everything") {
       return std::make_shared<TLS_All_Policy>();
+   } else if(policy_type == "anvil") {
+      return std::make_shared<TLS_Anvil_Policy>();
    }
 
    // if something we don't recognize, assume it's a file
