@@ -341,13 +341,12 @@ Protocol_Version select_version(const TLS::Policy& policy,
 /*
 * Process a Client Hello Message
 */
-void Server_Impl_12::process_client_hello_msg(const Handshake_State* active_state,
-                                              Server_Handshake_State& pending_state,
+void Server_Impl_12::process_client_hello_msg(Server_Handshake_State& pending_state,
                                               const std::vector<uint8_t>& contents,
                                               bool epoch0_restart) {
-   BOTAN_ASSERT_IMPLICATION(epoch0_restart, active_state != nullptr, "Can't restart with a dead connection");
+   BOTAN_ASSERT_IMPLICATION(epoch0_restart, active_state().has_value(), "Can't restart with a dead connection");
 
-   const bool initial_handshake = epoch0_restart || active_state == nullptr;
+   const bool initial_handshake = epoch0_restart || !active_state().has_value();
 
    if(initial_handshake == false && policy().allow_client_initiated_renegotiation() == false) {
       if(policy().abort_connection_on_undesired_renegotiation()) {
@@ -397,7 +396,7 @@ void Server_Impl_12::process_client_hello_msg(const Handshake_State* active_stat
    const Protocol_Version negotiated_version =
       select_version(policy(),
                      client_offer,
-                     active_state != nullptr ? active_state->version() : Protocol_Version(),
+                     active_state().has_value() ? active_state()->version() : Protocol_Version(),
                      pending_state.client_hello()->supported_versions());
 
    pending_state.set_version(negotiated_version);
@@ -622,8 +621,7 @@ void Server_Impl_12::process_finished_msg(Server_Handshake_State& pending_state,
 /*
 * Process a handshake message
 */
-void Server_Impl_12::process_handshake_msg(const Handshake_State* active_state,
-                                           Handshake_State& state_base,
+void Server_Impl_12::process_handshake_msg(Handshake_State& state_base,
                                            Handshake_Type type,
                                            const std::vector<uint8_t>& contents,
                                            bool epoch0_restart) {
@@ -644,7 +642,7 @@ void Server_Impl_12::process_handshake_msg(const Handshake_State* active_state,
 
    switch(type) {
       case Handshake_Type::ClientHello:
-         return this->process_client_hello_msg(active_state, state, contents, epoch0_restart);
+         return this->process_client_hello_msg(state, contents, epoch0_restart);
 
       case Handshake_Type::Certificate:
          return this->process_certificate_msg(state, contents);

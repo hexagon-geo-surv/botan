@@ -67,14 +67,12 @@ class Server_Impl_12 : public Channel_Impl_12 {
 
       void initiate_handshake(Handshake_State& state, bool force_full_renegotiation) override;
 
-      void process_handshake_msg(const Handshake_State* active_state,
-                                 Handshake_State& pending_state,
+      void process_handshake_msg(Handshake_State& pending_state,
                                  Handshake_Type type,
                                  const std::vector<uint8_t>& contents,
                                  bool epoch0_restart) override;
 
-      void process_client_hello_msg(const Handshake_State* active_state,
-                                    Server_Handshake_State& pending_state,
+      void process_client_hello_msg(Server_Handshake_State& pending_state,
                                     const std::vector<uint8_t>& contents,
                                     bool epoch0_restart);
 

@@ -68,6 +68,8 @@ class Handshake_State {
 
       Handshake_IO& handshake_io() { return *m_handshake_io; }
 
+      std::unique_ptr<Handshake_IO> take_handshake_io() { return std::move(m_handshake_io); }
+
       /**
       * Return true iff we have received a particular message already
       * @param msg_type the message type

@@ -74,8 +74,7 @@ class Client_Impl_12 : public Channel_Impl_12 {
                              std::optional<Session_with_Handle> session_and_handle = std::nullopt,
                              const std::vector<std::string>& next_protocols = {});
 
-      void process_handshake_msg(const Handshake_State* active_state,
-                                 Handshake_State& pending_state,
+      void process_handshake_msg(Handshake_State& pending_state,
                                  Handshake_Type type,
                                  const std::vector<uint8_t>& contents,
                                  bool epoch0_restart) override;
