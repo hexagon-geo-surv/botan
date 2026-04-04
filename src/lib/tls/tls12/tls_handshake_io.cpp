@@ -10,6 +10,7 @@
 #include <botan/exceptn.h>
 #include <botan/tls_exceptn.h>
 #include <botan/tls_handshake_msg.h>
+#include <botan/internal/fmt.h>
 #include <botan/internal/loadstor.h>
 #include <botan/internal/tls_record.h>
 #include <botan/internal/tls_seq_numbers.h>
@@ -72,11 +73,18 @@ void Stream_Handshake_IO::add_record(const uint8_t record[],
    }
 }
 
-std::pair<Handshake_Type, std::vector<uint8_t>> Stream_Handshake_IO::get_next_record(bool expecting_ccs) {
+std::pair<Handshake_Type, std::vector<uint8_t>> Stream_Handshake_IO::get_next_record(bool expecting_ccs,
+                                                                                     size_t max_message_size) {
    if(m_queue.size() >= 4) {
       const Handshake_Type type = static_cast<Handshake_Type>(m_queue[0]);
 
       const size_t rec_length = make_uint32(0, m_queue[1], m_queue[2], m_queue[3]);
+
+      if(rec_length > max_message_size) {
+         throw TLS_Exception(
+            Alert::HandshakeFailure,
+            Botan::fmt("Handshake message is {} bytes, policy maximum is {}", rec_length, max_message_size));
+      }
 
       // If we are expecting a CCS but the next queued message is not a CCS,
       // the peer has skipped the CCS message. This can happen when the peer
@@ -221,6 +229,13 @@ void Datagram_Handshake_IO::add_record(const uint8_t record[],
       verify_is_expected_wire_handshake_type(msg_type);
 
       const size_t msg_len = load_be24(&record[1]);
+
+      if(msg_len > m_max_handshake_msg_size) {
+         throw TLS_Exception(
+            Alert::HandshakeFailure,
+            Botan::fmt("Handshake message is {} bytes, policy maximum is {}", msg_len, m_max_handshake_msg_size));
+      }
+
       const uint16_t message_seq = load_be<uint16_t>(&record[4], 0);
       const size_t fragment_offset = load_be24(&record[6]);
       const size_t fragment_length = load_be24(&record[9]);
@@ -243,7 +258,8 @@ void Datagram_Handshake_IO::add_record(const uint8_t record[],
    }
 }
 
-std::pair<Handshake_Type, std::vector<uint8_t>> Datagram_Handshake_IO::get_next_record(bool expecting_ccs) {
+std::pair<Handshake_Type, std::vector<uint8_t>> Datagram_Handshake_IO::get_next_record(bool expecting_ccs,
+                                                                                       size_t /*max_message_size*/) {
    // Expecting a message means the last flight is concluded
    if(!m_flights.rbegin()->empty()) {
       m_flights.push_back(std::vector<uint16_t>());
