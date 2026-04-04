@@ -173,8 +173,8 @@ bool Handshake_State::received_handshake_msg(Handshake_Type handshake_msg) const
    return m_transitions.received_handshake_msg(handshake_msg);
 }
 
-std::pair<Handshake_Type, std::vector<uint8_t>> Handshake_State::get_next_handshake_msg() {
-   return m_handshake_io->get_next_record(m_transitions.change_cipher_spec_expected());
+std::pair<Handshake_Type, std::vector<uint8_t>> Handshake_State::get_next_handshake_msg(size_t max_handshake_msg_size) {
+   return m_handshake_io->get_next_record(m_transitions.change_cipher_spec_expected(), max_handshake_msg_size);
 }
 
 Session_Ticket Handshake_State::session_ticket() const {
