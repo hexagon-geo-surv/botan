@@ -154,8 +154,11 @@ const BigInt& RSA_PublicKey::get_e() const {
 }
 
 void RSA_PublicKey::init(BigInt&& n, BigInt&& e) {
-   if(n.signum() < 0 || n.is_even() || n.bits() < 5 /* n >= 3*5 */ || e.signum() < 0 || e.is_even()) {
-      throw Decoding_Error("Invalid RSA public key parameters");
+   if(n.signum() <= 0 || n.is_even() || n.bits() < 384 || n.bits() >= 16384) {
+      throw Decoding_Error("Invalid RSA public key modulus");
+   }
+   if(e.is_even() || e <= 1 || e >= n) {
+      throw Decoding_Error("Invalid RSA public key exponent");
    }
    m_public = std::make_shared<RSA_Public_Data>(std::move(n), std::move(e));
 }
