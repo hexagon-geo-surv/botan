@@ -154,6 +154,9 @@ PSK::PSK(TLS_Data_Reader& reader, uint16_t extension_size, Handshake_Type messag
       std::vector<PskIdentity> psk_identities;
       while(reader.has_remaining() && (reader.read_so_far() - identities_offset) < identities_length) {
          auto identity = reader.get_tls_length_value(2);
+         if(identity.empty()) {
+            throw TLS_Exception(Alert::DecodeError, "Empty PSK identity");
+         }
          const auto obfuscated_ticket_age = reader.get_uint32_t();
          psk_identities.emplace_back(std::move(identity), obfuscated_ticket_age);
       }
