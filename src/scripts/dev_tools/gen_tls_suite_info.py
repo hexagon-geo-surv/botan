@@ -58,7 +58,7 @@ def to_ciphersuite_info(code, name):
     if mac_algo == '8' and cipher[-1] == 'CCM':
         cipher = cipher[:-1]
         mac_algo = 'CCM_8'
-    elif cipher[-2] == 'CCM' and cipher[-1] == '8':
+    elif len(cipher) >= 2 and cipher[-2] == 'CCM' and cipher[-1] == '8':
         cipher = cipher[:-1]
         mac_algo = 'CCM_8'
 
@@ -78,6 +78,7 @@ def to_ciphersuite_info(code, name):
         'AES': ('AES',None),
         'SEED': ('SEED',16),
         'ARIA': ('ARIA',None),
+        'NULL': ('NULL', 0),
         }
 
     tls_to_botan_names = {
@@ -136,6 +137,10 @@ def to_ciphersuite_info(code, name):
 
     if cipher_algo in ['AES', 'Camellia', 'ARIA']:
         cipher_algo += '-%d' % (cipher_keylen*8)
+
+    if cipher_algo == 'NULL':
+        # NULL cipher suite: HMAC-based MAC, no encryption
+        return (name, code, sig_algo, kex_algo, cipher_algo, cipher_keylen, mac_algo, mac_keylen[mac_algo], mac_algo, 'NULL_CIPHER')
 
     mode = ''
 
@@ -209,7 +214,7 @@ def main(args = None):
     static_dh = ['ECDH_ECDSA', 'ECDH_RSA', 'DH_DSS', 'DH_RSA'] # not supported
     removed_algos = ['SEED', 'CAMELLIA_128_CBC', 'CAMELLIA_256_CBC']
     protocol_goop = ['SCSV', 'KRB5']
-    maybe_someday = ['RSA_PSK', 'ECCPWD', 'AEGIS']
+    maybe_someday = ['RSA_PSK', 'ECCPWD', 'AEGIS', 'ASCON']
     macciphersuites = ['SHA256_SHA256', 'SHA384_SHA384']
     shang_mi = ['SM4_GCM_SM3', 'SM4_CCM_SM3'] # RFC8998
     not_supported = weak_crypto + static_dh + protocol_goop + maybe_someday + removed_algos + macciphersuites + shang_mi
@@ -265,6 +270,91 @@ def main(args = None):
         define_custom_ciphersuite('PSK_WITH_AES_256_OCB_SHA256', 'FFC7')
         define_custom_ciphersuite('ECDHE_PSK_WITH_AES_256_OCB_SHA256', 'FFCB')
 
+    # NULL cipher suites (RFC9847). IANA lists more NULL suites, but the
+    # WITH_NULL substring above filters them all; we re-add the curated
+    # subset here so the generator stays in sync with the tls_null module.
+    define_custom_ciphersuite('PSK_WITH_NULL_SHA', '002C')
+    define_custom_ciphersuite('PSK_WITH_NULL_SHA256', '00B0')
+    define_custom_ciphersuite('PSK_WITH_NULL_SHA384', '00B1')
+    define_custom_ciphersuite('ECDHE_ECDSA_WITH_NULL_SHA', 'C006')
+    define_custom_ciphersuite('ECDHE_RSA_WITH_NULL_SHA', 'C010')
+    define_custom_ciphersuite('ECDHE_PSK_WITH_NULL_SHA', 'C039')
+    define_custom_ciphersuite('ECDHE_PSK_WITH_NULL_SHA256', 'C03A')
+    define_custom_ciphersuite('ECDHE_PSK_WITH_NULL_SHA384', 'C03B')
+
+    def gates_for_suite(info):
+        """Return the list of BOTAN_HAS_* macros that must all be defined
+        for this suite to be considered usable. Order is preserved only
+        for readability of the emitted #if expression."""
+        sig_algo = info[2]
+        kex_algo = info[3]
+        cipher_algo = info[4]
+        mac_algo = info[6]
+        prf_algo = info[8]
+
+        gates = []
+
+        # Key exchange
+        if kex_algo in ('ECDH', 'ECDHE_PSK'):
+            gates.append('BOTAN_HAS_ECDH')
+        elif kex_algo == 'DH':
+            gates.append('BOTAN_HAS_DIFFIE_HELLMAN')
+        # PSK, STATIC_RSA, UNDEFINED: no explicit kex gate
+
+        # Authentication
+        if sig_algo == 'ECDSA':
+            gates.append('BOTAN_HAS_ECDSA')
+        elif sig_algo == 'RSA':
+            gates.append('BOTAN_HAS_RSA')
+        # IMPLICIT, UNDEFINED: no auth gate
+
+        # Cipher + mode
+        if cipher_algo == 'NULL':
+            gates.append('BOTAN_HAS_TLS_NULL')
+        elif cipher_algo == 'ChaCha20Poly1305':
+            gates.append('BOTAN_HAS_AEAD_CHACHA20_POLY1305')
+        else:
+            if '/' in cipher_algo:
+                base, mode = cipher_algo.split('/', 1)
+            else:
+                base, mode = cipher_algo, 'CBC'
+
+            if base.startswith('AES-'):
+                gates.append('BOTAN_HAS_AES')
+            elif base.startswith('ARIA-'):
+                gates.append('BOTAN_HAS_ARIA')
+            elif base.startswith('Camellia-'):
+                gates.append('BOTAN_HAS_CAMELLIA')
+            elif base == '3DES':
+                gates.append('BOTAN_HAS_DES')
+
+            if mode == 'GCM':
+                gates.append('BOTAN_HAS_AEAD_GCM')
+            elif mode in ('CCM', 'CCM(8)'):
+                gates.append('BOTAN_HAS_AEAD_CCM')
+            elif mode.startswith('OCB'):
+                gates.append('BOTAN_HAS_AEAD_OCB')
+            elif mode == 'CBC':
+                gates.append('BOTAN_HAS_TLS_CBC')
+
+        # PRF hash (also covers the HMAC hash for non-AEAD suites, which
+        # always matches the PRF hash in the current table).
+        prf_gate = {
+            'SHA-1': 'BOTAN_HAS_SHA1',
+            'SHA-256': 'BOTAN_HAS_SHA2_32',
+            'SHA-384': 'BOTAN_HAS_SHA2_64',
+        }
+        gates.append(prf_gate[prf_algo])
+
+        # Preserve order but drop duplicates
+        seen = set()
+        deduped = []
+        for g in gates:
+            if g not in seen:
+                seen.add(g)
+                deduped.append(g)
+        return deduped
+
     suite_info = ''
 
     def header():
@@ -283,7 +373,44 @@ def main(args = None):
 
     suite_info += """#include <botan/tls_ciphersuite.h>
 
+#include <algorithm>
+#include <array>
+
 namespace Botan::TLS {
+
+namespace {
+
+/*
+* Suites whose preprocessor gates are all satisfied in this build.
+* Evaluated at compile time; Ciphersuite::is_known_usable() binary-searches
+* this array instead of re-deriving availability from the cipher/mac strings
+* at run time.
+*/
+consteval auto available_ciphersuites() {
+   auto codes = std::array {
+"""
+
+    for code in sorted(suites.keys()):
+        info = suites[code]
+        gates = gates_for_suite(info)
+        gate_expr = ' && '.join('defined(%s)' % g for g in gates)
+        suite_info += "#if %s\n" % gate_expr
+        suite_info += "      uint16_t{0x%s},\n" % code
+        suite_info += "#endif\n"
+
+    suite_info += """   };
+
+   std::sort(codes.begin(), codes.end());
+   return codes;
+}
+
+}  // namespace
+
+//static
+bool Ciphersuite::is_known_usable(uint16_t code) {
+   static constexpr auto codes = available_ciphersuites();
+   return std::binary_search(codes.begin(), codes.end(), code);
+}
 
 //static
 const std::vector<Ciphersuite>& Ciphersuite::all_known_ciphersuites() {
