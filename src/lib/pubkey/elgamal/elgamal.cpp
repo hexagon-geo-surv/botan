@@ -196,7 +196,8 @@ secure_vector<uint8_t> ElGamal_Decryption_Operation::raw_decrypt(std::span<const
    BigInt a(ctext.first(p_bytes));
    const BigInt b(ctext.last(p_bytes));
 
-   if(a >= group.get_p() || b >= group.get_p()) {
+   // Reject an ephemeral key of 0, 1, or p-1
+   if(a <= 1 || a >= group.get_p() - 1 || b >= group.get_p()) {
       throw Invalid_Argument("ElGamal decryption: Invalid message");
    }
 
