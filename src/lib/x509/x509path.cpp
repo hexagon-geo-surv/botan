@@ -22,6 +22,7 @@
 #include <vector>
 
 #if defined(BOTAN_HAS_ONLINE_REVOCATION_CHECKS)
+   #include <botan/uri.h>
    #include <botan/internal/http_util.h>
    #include <future>
 #endif
@@ -722,6 +723,22 @@ CertificatePathStatusCodes PKIX::check_crl(const std::vector<X509_Certificate>& 
 
 #if defined(BOTAN_HAS_ONLINE_REVOCATION_CHECKS)
 
+namespace {
+
+std::vector<URI> filter_http_urls(std::span<const URI> uris) {
+   std::vector<URI> results;
+
+   for(const auto& uri : uris) {
+      if(uri.scheme() == "http") {
+         results.push_back(uri);
+      }
+   }
+
+   return results;
+}
+
+}  // namespace
+
 CertificatePathStatusCodes PKIX::check_ocsp_online(const std::vector<X509_Certificate>& cert_path,
                                                    const std::vector<Certificate_Store*>& trusted_certstores,
                                                    std::chrono::system_clock::time_point ref_time,
@@ -749,32 +766,35 @@ CertificatePathStatusCodes PKIX::check_ocsp_online(const std::vector<X509_Certif
       if(skip_revocation_check(subject)) {
          ocsp_response_futures.emplace_back(
             std::async(std::launch::deferred, []() -> std::optional<OCSP::Response> { return std::nullopt; }));
-      } else if(subject.ocsp_responder().empty()) {
-         ocsp_response_futures.emplace_back(std::async(std::launch::deferred, []() -> std::optional<OCSP::Response> {
-            return OCSP::Response(Certificate_Status_Code::OCSP_NO_REVOCATION_URL);
-         }));
       } else {
-         auto ocsp_url = subject.ocsp_responder();
-         auto ocsp_req = OCSP::Request(issuer, BigInt::from_bytes(subject.serial_number()));
-         ocsp_response_futures.emplace_back(
-            std::async(std::launch::async, [ocsp_url, ocsp_req, timeout]() -> std::optional<OCSP::Response> {
-               HTTP::Response http;
-               try {
-                  http = HTTP::POST_sync(ocsp_url,
-                                         "application/ocsp-request",
-                                         ocsp_req.BER_encode(),
-                                         /*redirects*/ 1,
-                                         timeout);
+         const auto ocsp_urls = filter_http_urls(subject.ocsp_responder_uris());
 
-                  if(http.status_code() != 200) {
+         if(ocsp_urls.empty()) {
+            ocsp_response_futures.emplace_back(std::async(std::launch::deferred, []() -> std::optional<OCSP::Response> {
+               return OCSP::Response(Certificate_Status_Code::OCSP_NO_REVOCATION_URL);
+            }));
+         } else {
+            auto ocsp_req = OCSP::Request(issuer, BigInt::from_bytes(subject.serial_number()));
+            ocsp_response_futures.emplace_back(
+               std::async(std::launch::async, [ocsp_urls, ocsp_req, timeout]() -> std::optional<OCSP::Response> {
+                  HTTP::Response http;
+                  try {
+                     http = HTTP::POST_sync(ocsp_urls[0],
+                                            "application/ocsp-request",
+                                            ocsp_req.BER_encode(),
+                                            /*redirects*/ 1,
+                                            timeout);
+
+                     if(http.status_code() != 200) {
+                        return OCSP::Response(Certificate_Status_Code::OCSP_SERVER_NOT_AVAILABLE);
+                     }
+
+                     return OCSP::Response(http.body());
+                  } catch(std::exception&) {
                      return OCSP::Response(Certificate_Status_Code::OCSP_SERVER_NOT_AVAILABLE);
                   }
-
-                  return OCSP::Response(http.body());
-               } catch(std::exception&) {
-                  return OCSP::Response(Certificate_Status_Code::OCSP_SERVER_NOT_AVAILABLE);
-               }
-            }));
+               }));
+         }
       }
    }
 
@@ -828,22 +848,24 @@ CertificatePathStatusCodes PKIX::check_crl_online(const std::vector<X509_Certifi
          so that indexes match up
          */
          future_crls.emplace_back(std::future<std::optional<X509_CRL>>());
-      } else if(cert.crl_distribution_point().empty()) {
-         // Avoid creating a thread for this case
-         future_crls.emplace_back(std::async(std::launch::deferred, []() -> std::optional<X509_CRL> {
-            throw Not_Implemented("No CRL distribution point for this certificate");
-         }));
       } else {
-         auto cdp = cert.crl_distribution_point();
-         future_crls.emplace_back(std::async(std::launch::async, [cdp, timeout]() -> std::optional<X509_CRL> {
-            auto http = HTTP::GET_sync(cdp,
-                                       /*redirects*/ 1,
-                                       timeout);
+         const auto cdp_uris = filter_http_urls(cert.crl_distribution_point_uris());
 
-            http.throw_unless_ok();
-            // check the mime type?
-            return X509_CRL(http.body());
-         }));
+         if(cdp_uris.empty()) {
+            future_crls.emplace_back(std::async(std::launch::deferred, []() -> std::optional<X509_CRL> {
+               throw Not_Implemented("No CRL distribution point for this certificate");
+            }));
+         } else {
+            future_crls.emplace_back(std::async(std::launch::async, [cdp_uris, timeout]() -> std::optional<X509_CRL> {
+               auto http = HTTP::GET_sync(cdp_uris[0],
+                                          /*redirects*/ 1,
+                                          timeout);
+
+               http.throw_unless_ok();
+               // check the mime type?
+               return X509_CRL(http.body());
+            }));
+         }
       }
    }
 
